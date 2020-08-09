@@ -1,5 +1,5 @@
 {
-  "name": "phix",
+  "name": "phixl",
   "version": "1.0.0",
   "description": "a WebGL library for composing your own shaders",
   "main": "dist/index.js",
