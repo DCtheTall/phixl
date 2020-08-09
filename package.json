@@ -1,0 +1,28 @@
+{
+  "name": "phix",
+  "version": "1.0.0",
+  "description": "a WebGL library for composing your own shaders",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo TODO"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DCtheTall/phix.git"
+  },
+  "keywords": [
+    "WebGL",
+    "graphics",
+    "shaders",
+    "JavaScript",
+    "JS",
+    "TypeScript",
+    "3D"
+  ],
+  "author": "DCtheTall",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/DCtheTall/phix/issues"
+  },
+  "homepage": "https://github.com/DCtheTall/phix#readme"
+}
