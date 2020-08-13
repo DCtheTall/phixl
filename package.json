@@ -4,7 +4,8 @@
   "description": "a WebGL library for composing your own shaders",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo TODO"
+    "test": "echo TODO",
+    "build": "webpack --mode=production"
   },
   "repository": {
     "type": "git",
@@ -24,5 +25,11 @@
   "bugs": {
     "url": "https://github.com/DCtheTall/phix/issues"
   },
-  "homepage": "https://github.com/DCtheTall/phix#readme"
+  "homepage": "https://github.com/DCtheTall/phix#readme",
+  "devDependencies": {
+    "ts-loader": "^8.0.2",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.12"
+  }
 }
