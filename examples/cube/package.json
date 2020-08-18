@@ -1,0 +1,16 @@
+{
+  "name": "phixl-example-cube",
+  "version": "1.0.0",
+  "description": "An example of using the Phixl library to render a cube with WebGL.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "dependencies": {
+    "express": "^4.17.1",
+    "morgan": "^1.10.0",
+    "pug": "^3.0.0",
+    "webpack": "^4.44.1"
+  }
+}
