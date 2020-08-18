@@ -1,7 +1,7 @@
 {
   "name": "phixl",
   "version": "1.0.0",
-  "description": "a WebGL library for composing your own shaders",
+  "description": "a functional WebGL library for composing shaders",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo TODO",

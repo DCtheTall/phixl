@@ -2,7 +2,7 @@ const {join, resolve} = require('path');
 
 module.exports = {
   devtool: 'source-map',
-  entry: join(resolve('.'), 'src/index.ts'),
+  entry: join(resolve('.'), 'lib/index.ts'),
   target: 'web',
   output: {
     path: join(resolve('.'), 'dist/'),
