@@ -1,28 +1,27 @@
-/**
- * Initialize a WebGL context.
- */
-function createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
-  const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true})
-      || canvas.getContext( 
-          'experimental-webgl',
-          {preserveDrawingBuffer: true}) as WebGLRenderingContext;
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  return gl;
-}
+import {Attribute} from './attributes';
+import {createContext, createProgram} from './gl';
 
 type RenderTarget = HTMLCanvasElement;
 
 type RenderFunc = (target: RenderTarget) => void;
 
+export interface ShaderInit {
+  attributes?: {[index: string]: Attribute};
+  // uniforms: {[index: string]: Uniform};
+}
+
 /**
  * Create a shader function to render to a target.
  */
-export function Shader(vertexSrc: string, fragmentSrc: string): RenderFunc {
+export function Shader(vertexSrc: string, fragmentSrc: string, init: ShaderInit = {}): RenderFunc {
   return (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       const gl = createContext(target);
-      console.log(gl);
+      const program = createProgram(gl, vertexSrc, fragmentSrc);
+      for (const k in Object.keys(init.attributes)) {
+        init.attributes[k](gl, program);
+      }
     }
+    throw new Error('Not implemented');
   };
 }
