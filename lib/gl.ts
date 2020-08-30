@@ -51,8 +51,11 @@ export function createProgram(gl: WebGLRenderingContext,
   return program;
 }
 
-type Viewport = [number, number, number, number];
+export type Viewport = [number, number, number, number];
 
+/**
+ * Render a scene onto the provided frame and render buffers.
+ */
 export function render(gl: WebGLRenderingContext,
                        frameBuffer: WebGLFramebuffer,
                        renderBuffer: WebGLRenderbuffer,

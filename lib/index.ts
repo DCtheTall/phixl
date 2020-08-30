@@ -3,10 +3,10 @@
  */
 
 import {Attribute} from './attributes';
-import {createContext, createProgram, render} from './gl';
+import {Viewport, createContext, createProgram, render} from './gl';
 
-export {PLANE_VERTICES_TRIANGLE_STRIP} from './constants';
-export {FloatAttribute, Vec2Attribute} from './attributes';
+export * from './constants';
+export * from './attributes';
 
 type RenderTarget = HTMLCanvasElement;
 
@@ -15,14 +15,15 @@ type RenderFunc = (target: RenderTarget) => void;
 export interface ShaderInit {
   attributes?: {[index: string]: Attribute};
   // TODO uniforms: {[index: string]: Uniform};
+  viewport?: Viewport,
 }
 
 /**
  * Create a shader function to render to a target.
  */
-export const Shader = (vertexSrc: string,
+export const Shader = (nVertices: number,
+                       vertexSrc: string,
                        fragmentSrc: string,
-                       nVertices: number,
                        init: ShaderInit = {}): RenderFunc =>
   (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
@@ -35,8 +36,9 @@ export const Shader = (vertexSrc: string,
         init.attributes[k](gl, program);
       }
 
-      // TODO set viewport.
-      render(gl, null, null, 4, [0, 0, target.width, target.height]);
+      render(
+          gl, null, null, nVertices,
+          init.viewport || [0, 0, target.width, target.height]);
       return;
     }
     throw new Error('Not implemented');

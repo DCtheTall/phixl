@@ -10,7 +10,7 @@ const fragmentShader = require('./fragment.glsl').default;
 
 const canvas = document.getElementById('canvas');
 
-Shader(vertexShader, fragmentShader, 4, {
+Shader(4, vertexShader, fragmentShader, {
   attributes: {
     aPosition: Vec2Attribute('a_Position', PLANE_VERTICES_TRIANGLE_STRIP),
     aRed: FloatAttribute('a_Red', new Float32Array([1, 1, 0, 0])),
