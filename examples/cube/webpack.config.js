@@ -1,11 +1,23 @@
 const {join, resolve} = require('path');
 
 module.exports = {
-  mode: 'development',
   entry: './src/main.js',
-  target: 'web',
+  mode: 'development',
+  module: {
+    rules: [
+      {
+        test: /\.glsl$/,
+        use: {loader: 'raw-loader'},
+      },
+      {
+        test: /\.glsl$/,
+        use: {loader: 'glslify-loader'},
+      },
+    ],
+  },
   output: {
     path: join(resolve('.'), 'public/'),
     filename: 'main.js',
   },
+  target: 'web',
 };

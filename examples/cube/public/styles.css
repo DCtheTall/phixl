@@ -8,7 +8,6 @@ body {
 
 canvas {
   background: #000;
-  border: 3px solid #000;
   height: 600px;
   width: 800px;
 }

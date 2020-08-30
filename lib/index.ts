@@ -1,5 +1,12 @@
+/**
+ * @fileoverview Lib's main export script.
+ */
+
 import {Attribute} from './attributes';
-import {createContext, createProgram} from './gl';
+import {createContext, createProgram, render} from './gl';
+
+export {PLANE_VERTICES_TRIANGLE_STRIP} from './constants';
+export {FloatAttribute, Vec2Attribute} from './attributes';
 
 type RenderTarget = HTMLCanvasElement;
 
@@ -7,21 +14,30 @@ type RenderFunc = (target: RenderTarget) => void;
 
 export interface ShaderInit {
   attributes?: {[index: string]: Attribute};
-  // uniforms: {[index: string]: Uniform};
+  // TODO uniforms: {[index: string]: Uniform};
 }
 
 /**
  * Create a shader function to render to a target.
  */
-export function Shader(vertexSrc: string, fragmentSrc: string, init: ShaderInit = {}): RenderFunc {
-  return (target: RenderTarget) => {
+export const Shader = (vertexSrc: string,
+                       fragmentSrc: string,
+                       nVertices: number,
+                       init: ShaderInit = {}): RenderFunc =>
+  (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       const gl = createContext(target);
+
       const program = createProgram(gl, vertexSrc, fragmentSrc);
-      for (const k in Object.keys(init.attributes)) {
+      gl.useProgram(program);
+
+      for (const k of Object.keys(init.attributes || {})) {
         init.attributes[k](gl, program);
       }
+
+      // TODO set viewport.
+      render(gl, null, null, 4, [0, 0, target.width, target.height]);
+      return;
     }
     throw new Error('Not implemented');
   };
-}

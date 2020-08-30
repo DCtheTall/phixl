@@ -6,7 +6,8 @@ const PORT = process.env.PORT || 4000;
 
 const server = createServer(app);
 
-function onError(err) {
+server.on('listening', () => console.log(`Listening on ${PORT}`));
+server.on('error', (err) => {
   if (err.syscall !== 'listen') throw err;
   const bind = typeof port === 'string' ? `Pipe ${PORT}` : `Port ${PORT}`;
   switch (err.code) {
@@ -19,9 +20,6 @@ function onError(err) {
     default:
       throw err;
   }
-}
-
-server.on('listening', () => console.log(`Listening on ${PORT}`));
-server.on('error', onError);
+});
 
 server.listen(PORT);

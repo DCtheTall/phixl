@@ -50,3 +50,19 @@ export function createProgram(gl: WebGLRenderingContext,
   gl.linkProgram(program);
   return program;
 }
+
+type Viewport = [number, number, number, number];
+
+export function render(gl: WebGLRenderingContext,
+                       frameBuffer: WebGLFramebuffer,
+                       renderBuffer: WebGLRenderbuffer,
+                       nVertices: number,
+                       viewport: Viewport) {
+ // TODO handle rendering to a frame buffer.
+ gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+ gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
+ gl.viewport(...viewport);
+ // TODO drawing types
+ // TODO drawElements
+ gl.drawArrays(gl.TRIANGLE_STRIP, 0, nVertices);
+}
