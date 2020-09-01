@@ -4,9 +4,11 @@
 
 import {Attribute} from './attributes';
 import {Viewport, createContext, createProgram, render} from './gl';
+import {Uniform} from './uniforms';
 
-export * from './constants';
 export * from './attributes';
+export * from './constants';
+export * from './uniforms';
 
 type RenderTarget = HTMLCanvasElement;
 
@@ -14,7 +16,7 @@ type RenderFunc = (target: RenderTarget) => void;
 
 export interface ShaderInit {
   attributes?: {[index: string]: Attribute};
-  // TODO uniforms: {[index: string]: Uniform};
+  uniforms?: {[index: string]: Uniform};
   viewport?: Viewport,
 }
 
@@ -34,6 +36,10 @@ export const Shader = (nVertices: number,
 
       for (const k of Object.keys(init.attributes || {})) {
         init.attributes[k](gl, program);
+      }
+
+      for (const k of Object.keys(init.uniforms || {})) {
+        init.uniforms[k](gl, program);
       }
 
       render(
