@@ -1,5 +1,3 @@
-import {Attribute} from './attributes';
-
 /**
  * Initialize a WebGL context.
  */
