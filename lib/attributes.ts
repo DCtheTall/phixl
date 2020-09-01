@@ -11,7 +11,6 @@ type AttributeFunc = (name: string,
 type MatAttributeFunc = (name: string,
                          data: BufferSource[]) => Attribute;
 
-// TODO matrix attributes.
 /**
  * Returns an attribute builder function for the appropriate type.
  */
@@ -25,6 +24,9 @@ const attribute = (dimension: number): AttributeFunc =>
         gl.vertexAttribPointer(loc, dimension, gl.FLOAT, false, 0, 0);
       };
 
+/**
+ * Returns an attribute builder function for matrix attributes.
+ */
 const matrixAttribute = (dimension: number): MatAttributeFunc =>
     (name: string, data: BufferSource[]) =>
       (gl: WebGLRenderingContext, program: WebGLProgram) => {
