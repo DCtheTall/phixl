@@ -11,3 +11,7 @@ canvas {
   height: 600px;
   width: 800px;
 }
+
+img {
+  display: none;
+}

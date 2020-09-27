@@ -3,9 +3,9 @@
  */
 
 export type Uniform = (gl: WebGLRenderingContext,
-                       program: WebGLProgram) => void;
+                       program: WebGLProgram) => void | (() => void);
 
-type UniformBuilder<DataType> = (name: string, data: DataType) => Uniform;
+type UniformBuilder<DataType> = (name: string, data?: DataType) => Uniform;
 
 enum NumberUniformType {
   BOOLEAN = 'boolean',
@@ -26,10 +26,13 @@ const numberUniform = (type: NumberUniformType): UniformBuilder<number> =>
       switch (type) {
         case NumberUniformType.BOOLEAN:
           gl.uniform1i(loc, data);
+          break;
         case NumberUniformType.FLOAT:
           gl.uniform1f(loc, data);
+          break;
         case NumberUniformType.INTEGER:
           gl.uniform1i(loc, data);
+          break;
       }
     };
 
@@ -91,3 +94,44 @@ export const Mat2Uniform = uniform(UniformType.MATRIX, 2);
 export const Mat3Uniform = uniform(UniformType.MATRIX, 3);
 
 export const Mat4Uniform = uniform(UniformType.MATRIX, 4);
+
+/**
+ * Texture uniform builders.
+ */
+
+const registry = new WeakMap<WebGLProgram, number>();
+
+const isPowerOfTwo = (n: number) => ((n & (n - 1)) === 0);
+
+export const Texture2DUniform: UniformBuilder<TexImageSource> =
+  (name: string, data: TexImageSource) =>
+      (gl: WebGLRenderingContext, program: WebGLProgram) => {
+        const curIdx = registry.get(program) || 0;
+        if (curIdx === 32) {
+          throw new Error('Already at maximum number of textures for this program');
+        }
+        registry.set(program, curIdx + 1);
+
+        const texture = gl.createTexture();
+        const loc = gl.getUniformLocation(program, name);
+        gl.uniform1i(loc, curIdx);
+
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
+
+        if (isPowerOfTwo(data.width) && isPowerOfTwo(data.height)) {
+          gl.generateMipmap(gl.TEXTURE_2D);
+        } else {
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+        
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        return () => {
+          gl.activeTexture(gl.TEXTURE0 + curIdx);
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+        };
+      };
