@@ -20,8 +20,6 @@ export interface ShaderInit {
   viewport?: Viewport,
 }
 
-type VoidFn = () => void;
-
 /**
  * Create a shader function to render to a target.
  */
@@ -40,16 +38,8 @@ export const Shader = (nVertices: number,
         init.attributes[k](gl, program);
       }
 
-      const textureCallbacks: VoidFn[] = [];
       for (const k of Object.keys(init.uniforms || {})) {
-        const result = init.uniforms[k](gl, program);
-        if (typeof result === 'function') {
-          textureCallbacks.push(result);
-        }
-      }
-
-      for (const cb of textureCallbacks) {
-        cb();
+        init.uniforms[k](gl, program);
       }
 
       render(

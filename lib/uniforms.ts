@@ -3,7 +3,7 @@
  */
 
 export type Uniform = (gl: WebGLRenderingContext,
-                       program: WebGLProgram) => void | (() => void);
+                       program: WebGLProgram) => void;
 
 type UniformBuilder<DataType> = (name: string, data?: DataType) => Uniform;
 
@@ -128,10 +128,6 @@ export const Texture2DUniform: UniformBuilder<TexImageSource> =
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
         
-        gl.bindTexture(gl.TEXTURE_2D, null);
-
-        return () => {
-          gl.activeTexture(gl.TEXTURE0 + curIdx);
-          gl.bindTexture(gl.TEXTURE_2D, texture);
-        };
+        gl.activeTexture(gl.TEXTURE0 + curIdx);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
       };
