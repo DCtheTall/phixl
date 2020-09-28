@@ -2,6 +2,8 @@
  * @fileoverview Shader uniforms module.
  */
 
+import {isPowerOfTwo} from './math';
+
 export type Uniform = (gl: WebGLRenderingContext,
                        program: WebGLProgram) => void;
 
@@ -96,13 +98,13 @@ export const Mat3Uniform = uniform(UniformType.MATRIX, 3);
 export const Mat4Uniform = uniform(UniformType.MATRIX, 4);
 
 /**
- * Texture uniform builders.
+ * Keep track of the number of textures for each different WebGLProgram.
  */
-
 const registry = new WeakMap<WebGLProgram, number>();
 
-const isPowerOfTwo = (n: number) => ((n & (n - 1)) === 0);
-
+/**
+ * A builder for a 2D texture uniform.
+ */
 export const Texture2DUniform: UniformBuilder<TexImageSource> =
   (name: string, data: TexImageSource) =>
       (gl: WebGLRenderingContext, program: WebGLProgram) => {
@@ -127,7 +129,7 @@ export const Texture2DUniform: UniformBuilder<TexImageSource> =
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
-        
+
         gl.activeTexture(gl.TEXTURE0 + curIdx);
         gl.bindTexture(gl.TEXTURE_2D, texture);
       };

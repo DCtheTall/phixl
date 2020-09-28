@@ -17,8 +17,17 @@ type RenderFunc = (target: RenderTarget) => void;
 export interface ShaderInit {
   attributes?: {[index: string]: Attribute};
   uniforms?: {[index: string]: Uniform};
-  viewport?: Viewport,
+  viewport?: Viewport;
+  // GLenum for primitive type to render. See:
+  // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
+  mode?: number;
 }
+
+const defaultInit: ShaderInit = {
+  attributes: {},
+  uniforms: {},
+  mode: WebGLRenderingContext.TRIANGLE_STRIP,
+};
 
 /**
  * Create a shader function to render to a target.
@@ -26,7 +35,7 @@ export interface ShaderInit {
 export const Shader = (nVertices: number,
                        vertexSrc: string,
                        fragmentSrc: string,
-                       init: ShaderInit = {}): RenderFunc =>
+                       init: ShaderInit = defaultInit): RenderFunc =>
   (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       const gl = createContext(target);
@@ -44,7 +53,8 @@ export const Shader = (nVertices: number,
 
       render(
           gl, null, null, nVertices,
-          init.viewport || [0, 0, target.width, target.height]);
+          init.viewport || [0, 0, target.width, target.height],
+          init.mode || defaultInit.mode);
       return;
     }
     throw new Error('Not implemented');
