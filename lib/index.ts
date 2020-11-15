@@ -23,7 +23,7 @@ export interface ShaderInit {
   mode?: number;
 }
 
-const defaultInit: ShaderInit = {
+const defaultInit: Required<Omit<ShaderInit, 'viewport'>> = {
   attributes: {},
   uniforms: {},
   mode: WebGLRenderingContext.TRIANGLE_STRIP,
@@ -43,11 +43,11 @@ export const Shader = (nVertices: number,
       const program = createProgram(gl, vertexSrc, fragmentSrc);
       gl.useProgram(program);
 
-      for (const k of Object.keys(init.attributes || {})) {
+      for (const k of Object.getOwnPropertyNames(init.attributes || {})) {
         init.attributes[k](gl, program);
       }
 
-      for (const k of Object.keys(init.uniforms || {})) {
+      for (const k of Object.getOwnPropertyNames(init.uniforms || {})) {
         init.uniforms[k](gl, program);
       }
 

@@ -1,6 +1,6 @@
 const {
-  PLANE_VERTICES_TRIANGLE_STRIP,
-  PLANE_TEX_COORDS_TRIANGLE_STRIP,
+  PLANE_VERTICES,
+  PLANE_TEX_COORDS,
   Shader,
   Vec2Attribute,
   Texture2DUniform,
@@ -17,8 +17,8 @@ function main() {
 
   Shader(N_VERTICES, vertexShader, fragmentShader, {
     attributes: {
-      aPosition: Vec2Attribute('a_Position', PLANE_VERTICES_TRIANGLE_STRIP),
-      aTexCoords: Vec2Attribute('a_TexCoords', PLANE_TEX_COORDS_TRIANGLE_STRIP)
+      aPosition: Vec2Attribute('a_Position', PLANE_VERTICES),
+      aTexCoords: Vec2Attribute('a_TexCoords', PLANE_TEX_COORDS),
     },
     uniforms: {
       uTexture: Texture2DUniform('u_Texture', textureImg),
