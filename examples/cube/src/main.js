@@ -5,6 +5,7 @@ const {
   Shader,
   Vec2Attribute,
   Texture2DUniform,
+  Translate,
 } = require('../../../dist');
 
 function main() {
@@ -12,7 +13,7 @@ function main() {
   const fragmentShader = require('./fragment.glsl').default;
 
   const canvas = document.getElementById('canvas');
-  const textureImg = document.getElementById('texture');
+  const img = document.getElementById('texture');
 
   const N_VERTICES = 4;
 
@@ -22,11 +23,12 @@ function main() {
       Vec2Attribute('a_TexCoords', PLANE_TEX_COORDS),
     ],
     uniforms: [
-      Texture2DUniform('u_Texture', textureImg),
-      IdentityMat4Uniform('u_ModelViewMat'),
+      Texture2DUniform('u_Texture', img),
+      Translate(0, 0, -10)(IdentityMat4Uniform('u_ModelViewMat')),
     ],
-  })
+  });
+
   shader(canvas);
 }
 
-document.getElementById('texture').onload = main;
+document.body.onload = main;

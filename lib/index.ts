@@ -4,7 +4,7 @@
 
 import {Attribute} from './attributes';
 import {Viewport, createContext, createProgram, render} from './gl';
-import {Uniform} from './uniforms';
+import {Uniform, UniformData} from './uniforms';
 
 export * from './attributes';
 export * from './constants';
@@ -16,7 +16,7 @@ type RenderFunc = (target: RenderTarget) => void;
 
 export interface ShaderInit {
   attributes?: Attribute[];
-  uniforms?: Uniform[];
+  uniforms?: Uniform<UniformData>[];
   viewport?: Viewport;
   // GLenum for primitive type to render. See:
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
@@ -48,7 +48,7 @@ export const Shader = (nVertices: number,
       }
 
       for (const uniform of init.uniforms) {
-        uniform(gl, program);
+        uniform.send(gl, program);
       }
 
       render(
