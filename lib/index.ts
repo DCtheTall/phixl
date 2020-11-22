@@ -15,8 +15,8 @@ type RenderTarget = HTMLCanvasElement;
 type RenderFunc = (target: RenderTarget) => void;
 
 export interface ShaderInit {
-  attributes?: {[index: string]: Attribute};
-  uniforms?: {[index: string]: Uniform};
+  attributes?: Attribute[];
+  uniforms?: Uniform[];
   viewport?: Viewport;
   // GLenum for primitive type to render. See:
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
@@ -24,8 +24,8 @@ export interface ShaderInit {
 }
 
 const defaultInit: Required<Omit<ShaderInit, 'viewport'>> = {
-  attributes: {},
-  uniforms: {},
+  attributes: [],
+  uniforms: [],
   mode: WebGLRenderingContext.TRIANGLE_STRIP,
 };
 
@@ -43,12 +43,12 @@ export const Shader = (nVertices: number,
       const program = createProgram(gl, vertexSrc, fragmentSrc);
       gl.useProgram(program);
 
-      for (const k of Object.getOwnPropertyNames(init.attributes || {})) {
-        init.attributes[k](gl, program);
+      for (const attr of init.attributes) {
+        attr(gl, program);
       }
 
-      for (const k of Object.getOwnPropertyNames(init.uniforms || {})) {
-        init.uniforms[k](gl, program);
+      for (const uniform of init.uniforms) {
+        uniform(gl, program);
       }
 
       render(

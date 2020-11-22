@@ -2,18 +2,23 @@
  * @fileoverview Shader uniforms module.
  */
 
-import {isPowerOfTwo} from './math';
+import {Matrix, identity3, identity4, identity2, isPowerOfTwo, translate} from './math';
 
-export type Uniform = (gl: WebGLRenderingContext,
-                       program: WebGLProgram) => void;
-
-type UniformBuilder<DataType> = (name: string, data?: DataType) => Uniform;
-
-enum NumberUniformType {
+enum UniformType {
   BOOLEAN = 'boolean',
   FLOAT = 'float',
   INTEGER = 'integer',
+  VECTOR = 'vector',
+  MATRIX = 'matrix',
 }
+
+export type Uniform =
+  (gl: WebGLRenderingContext, program: WebGLProgram) => void;
+
+type UniformBuilder<Data> = (name: string, data?: Data) => Uniform;
+
+type NumberUniformType =
+  UniformType.BOOLEAN | UniformType.FLOAT | UniformType.INTEGER;
 
 /**
  * Create a builder function for each type of numeric uniform.
@@ -26,28 +31,23 @@ const numberUniform = (type: NumberUniformType): UniformBuilder<number> =>
       }
       const loc = gl.getUniformLocation(program, name);
       switch (type) {
-        case NumberUniformType.BOOLEAN:
+        case UniformType.BOOLEAN:
           gl.uniform1i(loc, data);
           break;
-        case NumberUniformType.FLOAT:
+        case UniformType.FLOAT:
           gl.uniform1f(loc, data);
           break;
-        case NumberUniformType.INTEGER:
+        case UniformType.INTEGER:
           gl.uniform1i(loc, data);
           break;
       }
     };
 
-export const BooleanUniform = numberUniform(NumberUniformType.BOOLEAN);
+export const BooleanUniform = numberUniform(UniformType.BOOLEAN);
 
-export const FloatUniform = numberUniform(NumberUniformType.FLOAT);
+export const FloatUniform = numberUniform(UniformType.FLOAT);
 
-export const IntegerUniform = numberUniform(NumberUniformType.INTEGER);
-
-enum UniformType {
-  VECTOR = 'vec',
-  MATRIX = 'mat',
-}
+export const IntegerUniform = numberUniform(UniformType.INTEGER);
 
 /**
  * Creates builder functions for vector and matrix uniforms.
@@ -97,10 +97,19 @@ export const Mat3Uniform = uniform(UniformType.MATRIX, 3);
 
 export const Mat4Uniform = uniform(UniformType.MATRIX, 4);
 
+const matrixUniform = (dimension: number, identity: Matrix) =>
+  (name: string) => uniform(UniformType.MATRIX, dimension)(name, identity);
+
+export const IdentityMat2Uniform = matrixUniform(2, identity2());
+
+export const IdentityMat3Uniform = matrixUniform(3, identity3());
+
+export const IdentityMat4Uniform = matrixUniform(4, identity4());
+
 /**
  * Keep track of the number of textures for each different WebGLProgram.
  */
-const registry = new WeakMap<WebGLProgram, number>();
+const textureRegistry = new WeakMap<WebGLProgram, number>();
 
 /**
  * A builder for a 2D texture uniform.
@@ -108,15 +117,17 @@ const registry = new WeakMap<WebGLProgram, number>();
 export const Texture2DUniform: UniformBuilder<TexImageSource> =
   (name: string, data: TexImageSource) =>
       (gl: WebGLRenderingContext, program: WebGLProgram) => {
-        const curIdx = registry.get(program) || 0;
-        if (curIdx === 32) {
+        // Get the next available texture address.
+        const addr = textureRegistry.get(program) || 0;
+        if (addr === 32) {
           throw new Error('Already at maximum number of textures for this program');
         }
-        registry.set(program, curIdx + 1);
+        // Set the next available address in the map.
+        textureRegistry.set(program, addr + 1);
 
         const texture = gl.createTexture();
         const loc = gl.getUniformLocation(program, name);
-        gl.uniform1i(loc, curIdx);
+        gl.uniform1i(loc, addr);
 
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
@@ -130,6 +141,6 @@ export const Texture2DUniform: UniformBuilder<TexImageSource> =
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
 
-        gl.activeTexture(gl.TEXTURE0 + curIdx);
+        gl.activeTexture(gl.TEXTURE0 + addr);
         gl.bindTexture(gl.TEXTURE_2D, texture);
       };
