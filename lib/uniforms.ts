@@ -2,7 +2,7 @@
  * @fileoverview Shader uniforms module.
  */
 
-import {Matrix, Matrix4, identity3, identity4, identity2, isPowerOfTwo, translate, scale4} from './math';
+import {Matrix, Matrix4, Vector3, Vector4, identity3, identity4, identity2, isPowerOfTwo, rotate4, scale4, translate} from './math';
 
 enum UniformType {
   BOOLEAN = 'boolean',
@@ -236,13 +236,51 @@ export const Translate = (x: number, y: number, z: number) =>
 /**
  * Create a transform on a Mat4Uniform that applies a scale
  * transformation. Takes 1, 3 or 4 arguments.
- * 
- * TODO handle other dimensions (only supports 4D matrices).
+ *
+ * TODO handle other dimensions.
  */
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
   SequenceUniform.checkDimension(u, 4);
   u.set(scale4(UniformBase.data(u) as Matrix4, ...args));
+  return u;
+};
+
+/**
+ * Create a transform on a Mat4Uniform that applies a
+ * 3D rotation of theta radians around the given axis.
+ *
+ * TODO handle other dimensions.
+ */
+export const Rotate = (theta: number, ...axis: Vector3) => (u: SequenceUniform) => {
+  UniformBase.checkType(u, UniformType.MATRIX);
+  SequenceUniform.checkDimension(u, 4);
+  u.set(rotate4(UniformBase.data(u) as Matrix4, theta, ...axis));
+  return u;
+};
+
+interface ModelMatOptions {
+  scale?: number | Vector3;
+  rotate?: Vector4,
+  translate?: Vector3,
+}
+
+/**
+ * Sends a model matrix to a shader as a uniform that applies
+ * a scale, rotation, and translation (in that order).
+ */
+export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}) => {
+  let u = IdentityMat4Uniform(name) as SequenceUniform;
+  if (opts.scale) {
+    if (typeof opts.scale === 'number') {
+      u = Scale(opts.scale)(u);
+    } else {
+      u = Scale(...opts.scale)(u);
+    }
+  }
+  if (opts.translate) u = Translate(...opts.translate)(u);
+  if (opts.rotate) u = Rotate(...opts.rotate)(u);
+  return u;
 };
 
 const textureRegistry = new WeakMap<WebGLProgram, number>();

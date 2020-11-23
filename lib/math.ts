@@ -7,6 +7,16 @@
  */
 export const isPowerOfTwo = (n: number) => ((n & (n - 1)) === 0);
 
+/**
+ * A 3-dimensional vector type as a number array.
+ */
+export type Vector3 = [number, number, number];
+
+/**
+ * A 4-dimensional vector type as a number array.
+ */
+export type Vector4 = [number, number, number, number];
+
 type Matrix2 = [
   number, number,
   number, number,
@@ -77,6 +87,8 @@ const multiply = <M extends Matrix>(d: MatrixDimension) =>
     return result;
   };
 
+const multiply4 = multiply<Matrix4>(4);
+
 /**
  * Apply a 3D transmation to a 4-dimensional matrix, M.
  */
@@ -102,3 +114,50 @@ const scale = <M extends Matrix>(d: MatrixDimension) =>
  * Scale the diagonal values of a 4D matrix.
  */
 export const scale4 = scale<Matrix4>(4);
+
+type Quaternion = [number, number, number, number];
+
+const quatToRotationMat4 = (q: Quaternion): Matrix4 => [
+  // first column
+  1 - (2 * ((q[2] ** 2) + (q[3] ** 2))),
+  2 * ((q[1] * q[2]) + (q[3] * q[0])),
+  2 * ((q[1] * q[3]) - (q[2] * q[0])),
+  0,
+  // second column
+  2 * ((q[1] * q[2]) - (q[3] * q[0])),
+  1 - (2 * ((q[1] ** 2) + (q[3] ** 2))),
+  2 * ((q[2] * q[3]) + (q[1] * q[0])),
+  0,
+  // third column
+  2 * ((q[1] * q[3]) + (q[2] * q[0])),
+  2 * ((q[2] * q[3]) - (q[1] * q[0])),
+  1 - (2 * ((q[1] ** 2) + (q[2] ** 2))),
+  0,
+  // fourth column
+  0, 0, 0, 1,
+];
+
+const normalize3 = (v: Vector3): Vector3 => {
+  const len = Math.hypot(...v);
+  if (!len) {
+    throw new Error('Cannot normalize a vector with no length');
+  }
+  return [v[0] / len, v[1] / len, v[2] / len];
+};
+
+/**
+ * Apply a 3D rotation of theta radians around the given axis
+ * to a 4D matrix.
+ */
+export const rotate4 =
+  (M: Matrix4, theta: number, ...axis: Vector3): Matrix4 => {
+    axis = normalize3(axis);
+    const s = Math.sin(theta / 2);
+    const q: Quaternion = [
+      Math.cos(theta / 2),
+      axis[0] * s,
+      axis[1] * s,
+      axis[2] * s,
+    ];
+    return multiply4(quatToRotationMat4(q), M);
+  };
