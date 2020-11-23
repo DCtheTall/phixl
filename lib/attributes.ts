@@ -2,6 +2,9 @@
  * @fileoverview Shader attributes module.
  */
 
+/**
+ * Abstraction for sending data to shaders in attributes.
+ */
 export type Attribute = (gl: WebGLRenderingContext,
                          program: WebGLProgram) => void;
 
@@ -20,19 +23,28 @@ const attribute = (dimension: number): AttributeBuilder =>
       gl.vertexAttribPointer(loc, dimension, gl.FLOAT, false, 0, 0);
     };
 
+/**
+ * Sends a float attribute to a shader.
+ */
 export const FloatAttribute = attribute(1);
 
+/**
+ * Sends a 2-dimensional vector attribute to a shader.
+ */
 export const Vec2Attribute = attribute(2);
 
+/**
+ * Sends a 3-dimensional vector attribute to a shader.
+ */
 export const Vec3Attribute = attribute(3);
 
+/**
+ * Sends a 4-dimensional vector attribute to a shader.
+ */
 export const Vec4Attribute = attribute(4);
 
 type MatAttributeBuilder = (name: string, data: BufferSource[]) => Attribute;
 
-/**
- * Returns an attribute builder function for matrix attributes.
- */
 const matrixAttribute = (dimension: number): MatAttributeBuilder =>
   (name: string, data: BufferSource[]) =>
     (gl: WebGLRenderingContext, program: WebGLProgram) => {
@@ -45,8 +57,17 @@ const matrixAttribute = (dimension: number): MatAttributeBuilder =>
       }
     };
 
+/**
+ * Sends a 2-dimensional matrix attribute to a shader.
+ */
 export const Mat2Attribute = matrixAttribute(2);
 
+/**
+ * Sends a 3-dimensional matrix attribute to a shader.
+ */
 export const Mat3Attribute = matrixAttribute(3);
 
+/**
+ * Sends a 4-dimensional matrix attribute to a shader.
+ */
 export const Mat4Attribute = matrixAttribute(4);

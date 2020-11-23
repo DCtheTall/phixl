@@ -14,7 +14,10 @@ type RenderTarget = HTMLCanvasElement;
 
 type RenderFunc = (target: RenderTarget) => void;
 
-export interface ShaderInit {
+/**
+ * Interface for the options you can supply to Shader.
+ */
+export interface ShaderOptions {
   attributes?: Attribute[];
   uniforms?: Uniform<UniformData>[];
   viewport?: Viewport;
@@ -23,7 +26,7 @@ export interface ShaderInit {
   mode?: number;
 }
 
-const defaultInit: Required<Omit<ShaderInit, 'viewport'>> = {
+const defaultOpts: Required<Omit<ShaderOptions, 'viewport'>> = {
   attributes: [],
   uniforms: [],
   mode: WebGLRenderingContext.TRIANGLE_STRIP,
@@ -35,7 +38,7 @@ const defaultInit: Required<Omit<ShaderInit, 'viewport'>> = {
 export const Shader = (nVertices: number,
                        vertexSrc: string,
                        fragmentSrc: string,
-                       init: ShaderInit = defaultInit): RenderFunc =>
+                       init: ShaderOptions = defaultOpts): RenderFunc =>
   (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       const gl = createContext(target);
@@ -52,9 +55,9 @@ export const Shader = (nVertices: number,
       }
 
       render(
-          gl, null, null, nVertices,
-          init.viewport || [0, 0, target.width, target.height],
-          init.mode || defaultInit.mode);
+        gl, null, null, nVertices,
+        init.viewport || [0, 0, target.width, target.height],
+        init.mode || defaultOpts.mode);
       return;
     }
     throw new Error('Not implemented');

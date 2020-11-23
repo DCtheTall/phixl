@@ -19,8 +19,8 @@ function main() {
 
   const shader = Shader(N_VERTICES, vertexShader, fragmentShader, {
     attributes: [
-      Vec2Attribute('a_Position', PLANE_VERTICES),
-      Vec2Attribute('a_TexCoords', PLANE_TEX_COORDS),
+      Vec2Attribute('a_PlanePosition', PLANE_VERTICES),
+      Vec2Attribute('a_PlaneTexCoords', PLANE_TEX_COORDS),
     ],
     uniforms: [
       Texture2DUniform('u_Texture', img),

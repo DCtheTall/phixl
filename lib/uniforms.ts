@@ -13,14 +13,27 @@ enum UniformType {
   TEXTURE = 'texture',
 }
 
+/**
+ * Different data types we send to shaders in uniforms.
+ */
 export type UniformData = number | Float32List | TexImageSource;
 
+/**
+ * Interface for abstraction for sending uniforms to shaders.
+ */
 export interface Uniform<Data extends UniformData> {
+  /**
+   * Send the data to the shader.
+   */
   send: (gl: WebGLRenderingContext, program: WebGLProgram) => void;
+
+  /**
+   * Set the data that it sends to the shader.
+   */
   set: (data: Data) => void;
 }
 
-type NumberUniformType =
+type BytesUniformType =
   UniformType.BOOLEAN | UniformType.FLOAT | UniformType.INTEGER;
 
 class UniformBase<Data> {
@@ -46,7 +59,7 @@ class UniformBase<Data> {
   }
 }
 
-class NumberUniform extends UniformBase<number> implements Uniform<number> {
+class BytesUniform extends UniformBase<number> implements Uniform<number> {
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.data)) {
       throw TypeError(`Data for ${this.type} uniform should be a number`);
@@ -71,14 +84,23 @@ type UniformBuilder = (name: string, data?: UniformData) => Uniform<UniformData>
 /**
  * Create a builder function for each type of numeric uniform.
  */
-const numberUniform = (type: NumberUniformType): UniformBuilder =>
-  (name: string, data?: number) => new NumberUniform(type, name, data);
+const bytesUniform = (type: BytesUniformType): UniformBuilder =>
+  (name: string, data?: number) => new BytesUniform(type, name, data);
 
-export const BooleanUniform = numberUniform(UniformType.BOOLEAN);
+/**
+ * Send a boolean uniform to a shader.
+ */
+export const BooleanUniform = bytesUniform(UniformType.BOOLEAN);
 
-export const FloatUniform = numberUniform(UniformType.FLOAT);
+/**
+ * Send a float uniform to a shader.
+ */
+export const FloatUniform = bytesUniform(UniformType.FLOAT);
 
-export const IntegerUniform = numberUniform(UniformType.INTEGER);
+/**
+ * Send a integer uniform to a shader.
+ */
+export const IntegerUniform = bytesUniform(UniformType.INTEGER);
 
 type SequenceUniformType = UniformType.VECTOR | UniformType.MATRIX;
 
@@ -151,30 +173,57 @@ const uniform =
     (name: string, data?: Float32List) =>
       new SequenceUniform(type, name, dimension, data);
 
+/**
+ * Sends a 2-dimensional vector to a shader.
+ */
 export const Vec2Uniform = uniform(UniformType.VECTOR, 2);
 
+/**
+ * Sends a 3-dimensional vector to a shader.
+ */
 export const Vec3Uniform = uniform(UniformType.VECTOR, 3);
 
+/**
+ * Sends a 4-dimensional vector to a shader.
+ */
 export const Vec4Uniform = uniform(UniformType.VECTOR, 4);
 
+/**
+ * Sends a 2-dimensional matrix to a shader.
+ */
 export const Mat2Uniform = uniform(UniformType.MATRIX, 2);
 
+/**
+ * Sends a 3-dimensional matrix to a shader.
+ */
 export const Mat3Uniform = uniform(UniformType.MATRIX, 3);
 
+/**
+ * Sends a 4-dimensional matrix to a shader.
+ */
 export const Mat4Uniform = uniform(UniformType.MATRIX, 4);
 
-/**
- * Creates a uniform builder for a matrix uniform originally set to identity.
- */
 const matrixUniform = (dimension: number, identity?: Matrix) =>
   (name: string) => uniform(UniformType.MATRIX, dimension)(name, identity);
 
+/**
+ * Sends a 2-dimensional identity matrix to a shader.
+ */
 export const IdentityMat2Uniform = matrixUniform(2, identity2());
 
+/**
+ * Sends a 3-dimensional identity matrix to a shader.
+ */
 export const IdentityMat3Uniform = matrixUniform(3, identity3());
 
+/**
+ * Sends a 4-dimensional identity matrix to a shader.
+ */
 export const IdentityMat4Uniform = matrixUniform(4, identity4());
 
+/**
+ * Create a transform on a Mat4Uniform that applies a 3D translation.
+ */
 export const Translate = (x: number, y: number, z: number) =>
   (u: SequenceUniform) => {
     UniformBase.checkType(u, UniformType.MATRIX);
@@ -183,9 +232,6 @@ export const Translate = (x: number, y: number, z: number) =>
     return u;
   };
 
-/**
- * Keep track of the number of textures for each different WebGLProgram.
- */
 const textureRegistry = new WeakMap<WebGLProgram, number>();
 
 class Texture2DUniformImpl extends UniformBase<TexImageSource>
@@ -221,7 +267,7 @@ class Texture2DUniformImpl extends UniformBase<TexImageSource>
 }
 
 /**
- * A builder for a 2D texture uniform.
+ * Sends a 2D texture uniform to a shader.
  */
 export const Texture2DUniform: UniformBuilder =
   (name: string, data?: TexImageSource) =>

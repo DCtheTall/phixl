@@ -49,6 +49,9 @@ export function createProgram(gl: WebGLRenderingContext,
   return program;
 }
 
+/**
+ * Abstract type for the bounds of a viewport.
+ */
 export type Viewport = [number, number, number, number];
 
 /**
