@@ -5,8 +5,9 @@ attribute vec2 a_PlaneTexCoords;
 
 varying vec2 v_PlaneTexCoords;
 
-uniform mat4 u_ModelViewMat;
+uniform mat4 u_ModelMat;
 uniform mat4 u_PerspectiveMat;
+uniform mat4 u_ViewMat;
 
 void main() {
   v_TexCoords = a_TexCoords;

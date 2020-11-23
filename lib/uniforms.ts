@@ -2,7 +2,7 @@
  * @fileoverview Shader uniforms module.
  */
 
-import {Matrix, Matrix4, identity3, identity4, identity2, isPowerOfTwo, translate} from './math';
+import {Matrix, Matrix4, identity3, identity4, identity2, isPowerOfTwo, translate, scale4} from './math';
 
 enum UniformType {
   BOOLEAN = 'boolean',
@@ -109,7 +109,7 @@ class SequenceUniform extends UniformBase<Float32List>
   constructor(
     type: SequenceUniformType,
     name: string,
-    protected readonly dimension: number,
+    public readonly dimension: number,
     data?: Float32List,
   ) {
     super(type, name, data);
@@ -222,7 +222,8 @@ export const IdentityMat3Uniform = matrixUniform(3, identity3());
 export const IdentityMat4Uniform = matrixUniform(4, identity4());
 
 /**
- * Create a transform on a Mat4Uniform that applies a 3D translation.
+ * Create a transform on a Mat4Uniform that applies a 3D translation
+ * to a 4D matrix.
  */
 export const Translate = (x: number, y: number, z: number) =>
   (u: SequenceUniform) => {
@@ -231,6 +232,18 @@ export const Translate = (x: number, y: number, z: number) =>
     u.set(translate(UniformBase.data(u) as Matrix4, x, y, z))
     return u;
   };
+
+/**
+ * Create a transform on a Mat4Uniform that applies a scale
+ * transformation. Takes 1, 3 or 4 arguments.
+ * 
+ * TODO handle other dimensions (only supports 4D matrices).
+ */
+export const Scale = (...args: number[]) => (u: SequenceUniform) => {
+  UniformBase.checkType(u, UniformType.MATRIX);
+  SequenceUniform.checkDimension(u, 4);
+  u.set(scale4(UniformBase.data(u) as Matrix4, ...args));
+};
 
 const textureRegistry = new WeakMap<WebGLProgram, number>();
 

@@ -57,13 +57,48 @@ export const identity4 = (): Matrix4 => [
   0, 0, 0, 1,
 ];
 
+type MatrixDimension = 2 | 3 | 4;
+
+const dimensionToIdentityMap: {[key in MatrixDimension]?: () => Matrix} = {
+  2: identity2,
+  3: identity3,
+  4: identity4,
+};
+
+const multiply = <M extends Matrix>(d: MatrixDimension) =>
+  (A: M, B: M) => {
+    const result = dimensionToIdentityMap[d]() as M;
+    for (let i = 0; i < d; i++)
+    for (let j = 0; j < d; j++)
+    for (let k = 0; k < d; k++) {
+      result[(d * i) + j] =
+        A[(d * i) + k] + B[(d * k) + j];
+    }
+    return result;
+  };
+
 /**
  * Apply a 3D transmation to a 4-dimensional matrix, M.
  */
 export const translate =
-  (M: Matrix4, x: number, y: number, z: number): Matrix4 => [
-    M[0],  M[1],  M[2],  M[3]  + x,
-    M[4],  M[5],  M[6],  M[7]  + y,
-    M[8],  M[9],  M[10], M[11] + z,
-    M[12], M[13], M[14], M[15],
-  ];
+  (M: Matrix4, x: number, y: number, z: number): Matrix4 => {
+    const result = M.slice(0, 16) as Matrix4;
+    result[12] += x;
+    result[13] += y;
+    result[14] += z;
+    return result;
+  };
+
+const scale = <M extends Matrix>(d: MatrixDimension) =>
+  (A: M, ...scale: number[]) => {
+    const S = dimensionToIdentityMap[d]() as M;
+    for (let i = 0; i < d; i++) {
+      S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
+    }
+    return multiply<M>(d)(S, A);
+  };
+
+/**
+ * Scale the diagonal values of a 4D matrix.
+ */
+export const scale4 = scale<Matrix4>(4);

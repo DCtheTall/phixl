@@ -24,7 +24,8 @@ function main() {
     ],
     uniforms: [
       Texture2DUniform('u_Texture', img),
-      Translate(0, 0, -10)(IdentityMat4Uniform('u_ModelViewMat')),
+      Translate(0, 0, -10)(
+        Scale(0.4)(IdentityMat4Uniform('u_ModelMat'))),
     ],
   });
 
