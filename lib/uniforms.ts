@@ -10,6 +10,7 @@ import {
   identity,
   isPowerOfTwo,
   lookAt,
+  perspective,
   rotate4,
   scale4,
   translate,
@@ -143,25 +144,33 @@ class SequenceUniform extends UniformBase<Float32List>
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     this.validateData();
     const loc = gl.getUniformLocation(program, this.name);
-      if (this.type == UniformType.VECTOR) {
-        switch (this.dimension) {
-          case 2:
-            gl.uniform2fv(loc, this.data);
-          case 3:
-            gl.uniform3fv(loc, this.data);
-          case 4:
-            gl.uniform4fv(loc, this.data);
-        }
+      if (this.type === UniformType.VECTOR) {
+        this.sendVector(gl, loc);
       } else {
-        switch (this.dimension) {
-          case 2:
-            gl.uniformMatrix2fv(loc, false, this.data);
-          case 3:
-            gl.uniformMatrix3fv(loc, false, this.data);
-          case 4:
-            gl.uniformMatrix4fv(loc, false, this.data);
-        }
+        this.sendMatrix(gl, loc);
       }
+  }
+
+  private sendVector(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
+    switch (this.dimension) {
+      case 2:
+        gl.uniform2fv(loc, this.data);
+      case 3:
+        gl.uniform3fv(loc, this.data);
+      case 4:
+        gl.uniform4fv(loc, this.data);
+    }
+  }
+
+  private sendMatrix(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
+    switch (this.dimension) {
+      case 2:
+        gl.uniformMatrix2fv(loc, false, this.data);
+      case 3:
+        gl.uniformMatrix3fv(loc, false, this.data);
+      case 4:
+        gl.uniformMatrix4fv(loc, false, this.data);
+    }
   }
 
   set(data: Float32List) {
@@ -303,6 +312,15 @@ export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}) => {
 export const ViewMatUniform =
   (name: string, eye: Vector3, at: Vector3, up: Vector3) =>
     sequenceUniform(UniformType.MATRIX, 4)(name, lookAt(eye, at, up));
+
+/**
+ * Sends a perspective 4D matrix uniform.
+ */
+export const PerspectiveMatUniform =
+  (name: string, fovy: number, aspect: number, near: number,
+   far: number | null) =>
+     sequenceUniform(UniformType.MATRIX, 4)(
+       name, perspective(fovy, aspect, near, far));
 
 const textureRegistry = new WeakMap<WebGLProgram, number>();
 

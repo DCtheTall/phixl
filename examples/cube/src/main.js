@@ -4,6 +4,7 @@ const {
   PLANE_TEX_COORDS,
   ModelMatUniform,
   Shader,
+  PerspectiveMatUniform,
   Texture2DUniform,
   Vec2Attribute,
   ViewMatUniform,
@@ -28,6 +29,7 @@ function main() {
       }),
       Texture2DUniform('u_Texture', img),
       ViewMatUniform('u_ViewMat', [0, 0, 0], [0, 0, -1], [0, 1, 0]),
+      PerspectiveMatUniform('u_PerspectiveMat', Math.PI / 4, 1, 0, 10),
     ],
   });
 

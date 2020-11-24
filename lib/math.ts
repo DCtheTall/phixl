@@ -169,14 +169,14 @@ const cross = (a: Vector3, b: Vector3): Vector3 => [
  * Compute the 4D view matrix for a camera at
  * position "eye", looking at position "at", oriented
  * with "up" facing in the y+ direction.
+ * 
+ * Based on https://github/toji/gl-matrix
  */
 export const lookAt =
   (eye: Vector3, at: Vector3, up: Vector3, epsilon=1e-6): Matrix4 => {
     let z = subtract3(eye, at);
-    if (Math.abs(z[0]) < epsilon
-        && Math.abs(z[1]) < epsilon
-        && Math.abs(z[2]) < epsilon) {
-      return identity(4) as Matrix4;
+    for (let i = 0; i < 3; i++) {
+      if (Math.abs(z[i]) < epsilon) return identity(4) as Matrix4;
     }
     z = normalize3(z);
 
@@ -199,5 +199,34 @@ export const lookAt =
       x[1], y[1], z[1], 0,
       x[2], y[2], z[2], 0,
       -dot3(x, eye), -dot3(y, eye), -dot3(z, eye), 1,
+    ];
+  };
+
+
+/**
+ * Generate a 4D perspective matrix from
+ * @param {fovy} vertical field of view (radians)
+ * @param {aspect} width / height aspect ratio
+ * @param {near} near bound of the frustum
+ * @param {far} far bound of the frustum, can be Infinity or null
+ */
+export const perspective =
+  (fovy: number, aspect: number, near: number, far: number | null): Matrix4 => {
+    const f = 1.0 / Math.tan(fovy / 2);
+    let out10: number;
+    let out14: number;
+    if (far === null || far !== Infinity) {
+      const nf = 1 / (near - far),
+      out10 = (near + far) * nf;
+      out14 = 2 * far * near * nf;
+    } else {
+      out10 = -1;
+      out14 = -2 * near;
+    }
+    return [
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, out10, -1,
+      0, 0, out14,  0,
     ];
   };
