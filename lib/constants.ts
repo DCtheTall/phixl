@@ -10,6 +10,8 @@
  * Order of elements is always: upper left, upper right, lower left, lower right.
  */
 
+export const PLANE_N_VERTICES = 4;
+
 export const PLANE_VERTICES =
     new Float32Array([-1, 1, 1, 1, -1, -1, 1, -1]);
 

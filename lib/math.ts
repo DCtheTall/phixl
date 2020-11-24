@@ -43,41 +43,34 @@ export type Matrix4 = [
  */
 export type Matrix = Matrix2 | Matrix3 | Matrix4;
 
-/**
- * Make 2-dimensional identity matrix.
- */
-export const identity2 = (): Matrix2 => [1, 0, 0, 1];
-
-/**
- * Make 3-dimensional identity matrix.
- */
-export const identity3 = (): Matrix3 => [
-  1, 0, 0,
-  0, 1, 0,
-  0, 0, 1,
-];
-
-/**
- * Make 4-dimensional identity matrix.
- */
-export const identity4 = (): Matrix4 => [
-  1, 0, 0, 0,
-  0, 1, 0, 0,
-  0, 0, 1, 0,
-  0, 0, 0, 1,
-];
-
 type MatrixDimension = 2 | 3 | 4;
 
-const dimensionToIdentityMap: {[key in MatrixDimension]?: () => Matrix} = {
-  2: identity2,
-  3: identity3,
-  4: identity4,
-};
+export const identity = (dim: MatrixDimension): Matrix => {
+  switch (dim) {
+    case 2:
+      return [1, 0, 0, 1];
+    case 3:
+      return [
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+      ];
+    case 4:
+      return [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+      ];
+    default:
+      throw TypeError(
+        `Expected dimension to be 2, 3, 4, got ${dim}`);
+  }
+}
 
 const multiply = <M extends Matrix>(d: MatrixDimension) =>
   (A: M, B: M) => {
-    const result = dimensionToIdentityMap[d]() as M;
+    const result = identity(d) as M;
     for (let i = 0; i < d; i++)
     for (let j = 0; j < d; j++)
     for (let k = 0; k < d; k++) {
@@ -86,8 +79,6 @@ const multiply = <M extends Matrix>(d: MatrixDimension) =>
     }
     return result;
   };
-
-const multiply4 = multiply<Matrix4>(4);
 
 /**
  * Apply a 3D transmation to a 4-dimensional matrix, M.
@@ -103,7 +94,7 @@ export const translate =
 
 const scale = <M extends Matrix>(d: MatrixDimension) =>
   (A: M, ...scale: number[]) => {
-    const S = dimensionToIdentityMap[d]() as M;
+    const S = identity(d) as M;
     for (let i = 0; i < d; i++) {
       S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
     }
@@ -159,5 +150,54 @@ export const rotate4 =
       axis[1] * s,
       axis[2] * s,
     ];
-    return multiply4(quatToRotationMat4(q), M);
+    return multiply(4)(quatToRotationMat4(q), M) as Matrix4;
+  };
+
+const subtract3 = (a: Vector3, b: Vector3): Vector3 =>
+  [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+
+const dot3 = (a: Vector3, b: Vector3): number =>
+  (a[0] * b[0]) + (a[1] * b[1]) + (a[2] * b[2]);
+
+const cross = (a: Vector3, b: Vector3): Vector3 => [
+  (a[1] * b[2]) - (a[2] * b[1]),
+  (a[0] * b[2]) - (a[2] * b[0]),
+  (a[0] * b[1]) - (a[1] * b[0]),
+];
+
+/**
+ * Compute the 4D view matrix for a camera at
+ * position "eye", looking at position "at", oriented
+ * with "up" facing in the y+ direction.
+ */
+export const lookAt =
+  (eye: Vector3, at: Vector3, up: Vector3, epsilon=1e-6): Matrix4 => {
+    let z = subtract3(eye, at);
+    if (Math.abs(z[0]) < epsilon
+        && Math.abs(z[1]) < epsilon
+        && Math.abs(z[2]) < epsilon) {
+      return identity(4) as Matrix4;
+    }
+    z = normalize3(z);
+
+    let x: Vector3;
+    try {
+      x = normalize3(cross(up, z));
+    } catch (ok) {
+      x = [0, 0, 0];
+    }
+
+    let y: Vector3;
+    try {
+      y = normalize3(cross(z, x));
+    } catch (ok) {
+      y = [0, 0, 0];
+    }
+
+    return [
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -dot3(x, eye), -dot3(y, eye), -dot3(z, eye), 1,
+    ];
   };

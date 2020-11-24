@@ -2,7 +2,18 @@
  * @fileoverview Shader uniforms module.
  */
 
-import {Matrix, Matrix4, Vector3, Vector4, identity3, identity4, identity2, isPowerOfTwo, rotate4, scale4, translate} from './math';
+import {
+  Matrix,
+  Matrix4,
+  Vector3,
+  Vector4,
+  identity,
+  isPowerOfTwo,
+  lookAt,
+  rotate4,
+  scale4,
+  translate,
+} from './math';
 
 enum UniformType {
   BOOLEAN = 'boolean',
@@ -168,7 +179,7 @@ class SequenceUniform extends UniformBase<Float32List>
 /**
  * Creates builder functions for vector and matrix uniforms.
  */
-const uniform =
+const sequenceUniform =
   (type: SequenceUniformType, dimension: number): UniformBuilder =>
     (name: string, data?: Float32List) =>
       new SequenceUniform(type, name, dimension, data);
@@ -176,50 +187,52 @@ const uniform =
 /**
  * Sends a 2-dimensional vector to a shader.
  */
-export const Vec2Uniform = uniform(UniformType.VECTOR, 2);
+export const Vec2Uniform = sequenceUniform(UniformType.VECTOR, 2);
 
 /**
  * Sends a 3-dimensional vector to a shader.
  */
-export const Vec3Uniform = uniform(UniformType.VECTOR, 3);
+export const Vec3Uniform = sequenceUniform(UniformType.VECTOR, 3);
 
 /**
  * Sends a 4-dimensional vector to a shader.
  */
-export const Vec4Uniform = uniform(UniformType.VECTOR, 4);
+export const Vec4Uniform = sequenceUniform(UniformType.VECTOR, 4);
 
 /**
  * Sends a 2-dimensional matrix to a shader.
  */
-export const Mat2Uniform = uniform(UniformType.MATRIX, 2);
+export const Mat2Uniform = sequenceUniform(UniformType.MATRIX, 2);
 
 /**
  * Sends a 3-dimensional matrix to a shader.
  */
-export const Mat3Uniform = uniform(UniformType.MATRIX, 3);
+export const Mat3Uniform = sequenceUniform(UniformType.MATRIX, 3);
 
 /**
  * Sends a 4-dimensional matrix to a shader.
  */
-export const Mat4Uniform = uniform(UniformType.MATRIX, 4);
+export const Mat4Uniform = sequenceUniform(UniformType.MATRIX, 4);
 
-const matrixUniform = (dimension: number, identity?: Matrix) =>
-  (name: string) => uniform(UniformType.MATRIX, dimension)(name, identity);
+const matrixUniform =
+  (dimension: number, identity?: Matrix) =>
+    (name: string) =>
+      sequenceUniform(UniformType.MATRIX, dimension)(name, identity);
 
 /**
  * Sends a 2-dimensional identity matrix to a shader.
  */
-export const IdentityMat2Uniform = matrixUniform(2, identity2());
+export const IdentityMat2Uniform = matrixUniform(2, identity(2));
 
 /**
  * Sends a 3-dimensional identity matrix to a shader.
  */
-export const IdentityMat3Uniform = matrixUniform(3, identity3());
+export const IdentityMat3Uniform = matrixUniform(3, identity(3));
 
 /**
  * Sends a 4-dimensional identity matrix to a shader.
  */
-export const IdentityMat4Uniform = matrixUniform(4, identity4());
+export const IdentityMat4Uniform = matrixUniform(4, identity(4));
 
 /**
  * Create a transform on a Mat4Uniform that applies a 3D translation
@@ -282,6 +295,14 @@ export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}) => {
   if (opts.rotate) u = Rotate(...opts.rotate)(u);
   return u;
 };
+
+/**
+ * Sends a view matrix uniform for the given
+ * eye, at, and up vectors.
+ */
+export const ViewMatUniform =
+  (name: string, eye: Vector3, at: Vector3, up: Vector3) =>
+    sequenceUniform(UniformType.MATRIX, 4)(name, lookAt(eye, at, up));
 
 const textureRegistry = new WeakMap<WebGLProgram, number>();
 
