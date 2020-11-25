@@ -24,12 +24,14 @@ export interface ShaderOptions {
   // GLenum for primitive type to render. See:
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
   mode?: number;
+  drawElements?: boolean;
 }
 
 const defaultOpts: Required<Omit<ShaderOptions, 'viewport'>> = {
   attributes: [],
   uniforms: [],
   mode: WebGLRenderingContext.TRIANGLE_STRIP,
+  drawElements: false,
 };
 
 /**
@@ -47,7 +49,7 @@ export const Shader = (nVertices: number,
       gl.useProgram(program);
 
       for (const attr of init.attributes) {
-        attr(gl, program);
+        attr(gl, program, init.drawElements);
       }
 
       for (const uniform of init.uniforms) {
@@ -57,7 +59,8 @@ export const Shader = (nVertices: number,
       render(
         gl, null, null, nVertices,
         init.viewport || [0, 0, target.width, target.height],
-        init.mode || defaultOpts.mode);
+        init.mode || defaultOpts.mode,
+        init.drawElements);
       return;
     }
     throw new Error('Not implemented');

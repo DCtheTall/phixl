@@ -1,12 +1,14 @@
 const {
-  PLANE_N_VERTICES,
-  PLANE_VERTICES,
-  PLANE_TEX_COORDS,
+  CUBE_N_VERTICES,
+  CUBE_VERTICES,
+  CUBE_TEX_COORDS,
+  CUBE_INDICES,
   ModelMatUniform,
   Shader,
   PerspectiveMatUniform,
   Texture2DUniform,
   Vec2Attribute,
+  Vec3Attribute,
   ViewMatUniform,
 } = require('../../../dist');
 
@@ -17,19 +19,21 @@ function main() {
   const canvas = document.getElementById('canvas');
   const img = document.getElementById('texture');
 
-  const shader = Shader(PLANE_N_VERTICES, vertexShader, fragmentShader, {
+  const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
+    mode: WebGLRenderingContext.TRIANGLES,
+    drawElements: true,
     attributes: [
-      Vec2Attribute('a_PlanePosition', PLANE_VERTICES),
-      Vec2Attribute('a_PlaneTexCoords', PLANE_TEX_COORDS),
+      Vec3Attribute('a_Vertices', CUBE_VERTICES, CUBE_INDICES),
+      Vec2Attribute('a_TexCoords', CUBE_TEX_COORDS, CUBE_INDICES),
     ],
     uniforms: [
       ModelMatUniform('u_ModelMat', {
-        scale: 0.4,
-        translate: [0, 0, -10],
+        translate: [0, 0, -5],
+        rotate: [Math.PI / 4, 1, 1, 0],
       }),
       Texture2DUniform('u_Texture', img),
-      ViewMatUniform('u_ViewMat', [0, 0, 0], [0, 0, -1], [0, 1, 0]),
-      PerspectiveMatUniform('u_PerspectiveMat', Math.PI / 4, 1, 0, 10),
+      ViewMatUniform('u_ViewMat', [0, 0, 5], [0, 0, 0], [0, 1, 0]),
+      PerspectiveMatUniform('u_PerspectiveMat', Math.PI / 4, 1, 0, 1e6),
     ],
   });
 

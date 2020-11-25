@@ -62,11 +62,15 @@ export function render(gl: WebGLRenderingContext,
                        renderBuffer: WebGLRenderbuffer,
                        nVertices: number,
                        viewport: Viewport,
-                       mode: number) {
+                       mode: number,
+                       drawElements: boolean) {
   // TODO handle rendering to a frame buffer.
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
   gl.viewport(...viewport);
-  // TODO drawElements
-  gl.drawArrays(mode, 0, nVertices);
+  if (drawElements) {
+    gl.drawElements(mode, nVertices, gl.UNSIGNED_SHORT, 0);
+  } else {
+    gl.drawArrays(mode, 0, nVertices);
+  }
 }

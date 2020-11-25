@@ -72,10 +72,12 @@ const multiply = <M extends Matrix>(d: MatrixDimension) =>
   (A: M, B: M) => {
     const result = identity(d) as M;
     for (let i = 0; i < d; i++)
-    for (let j = 0; j < d; j++)
-    for (let k = 0; k < d; k++) {
-      result[(d * i) + j] =
-        A[(d * i) + k] + B[(d * k) + j];
+    for (let j = 0; j < d; j++) {
+      result[(d * i) + j] = 0;
+      for (let k = 0; k < d; k++) {
+        result[(d * i) + j] +=
+          A[(d * i) + k] * B[(d * k) + j];
+      }
     }
     return result;
   };
@@ -98,7 +100,9 @@ const scale = <M extends Matrix>(d: MatrixDimension) =>
     for (let i = 0; i < d; i++) {
       S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
     }
-    return multiply<M>(d)(S, A);
+    let m = multiply<M>(d)(S, A);
+    console.log(S, A, m);
+    return m;
   };
 
 /**
@@ -175,9 +179,11 @@ const cross = (a: Vector3, b: Vector3): Vector3 => [
 export const lookAt =
   (eye: Vector3, at: Vector3, up: Vector3, epsilon=1e-6): Matrix4 => {
     let z = subtract3(eye, at);
+    let count = 0;
     for (let i = 0; i < 3; i++) {
-      if (Math.abs(z[i]) < epsilon) return identity(4) as Matrix4;
+      if (Math.abs(z[i]) < epsilon) count++;
     }
+    if (count === 3) return identity(4) as Matrix4;
     z = normalize3(z);
 
     let x: Vector3;
@@ -215,8 +221,8 @@ export const perspective =
     const f = 1.0 / Math.tan(fovy / 2);
     let out10: number;
     let out14: number;
-    if (far === null || far !== Infinity) {
-      const nf = 1 / (near - far),
+    if (far !== null && far !== Infinity) {
+      const nf = 1 / (near - far);
       out10 = (near + far) * nf;
       out14 = 2 * far * near * nf;
     } else {
