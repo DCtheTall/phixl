@@ -65,6 +65,7 @@ export function render(gl: WebGLRenderingContext,
                        mode: number,
                        drawElements: boolean) {
   // TODO handle rendering to a frame buffer.
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
   gl.viewport(...viewport);

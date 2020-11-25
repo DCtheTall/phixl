@@ -45,27 +45,17 @@ export type Matrix = Matrix2 | Matrix3 | Matrix4;
 
 type MatrixDimension = 2 | 3 | 4;
 
+const dimension = (mat: Matrix) => Math.sqrt(mat.length) as MatrixDimension;
+
+const zeros = (dim: MatrixDimension): Matrix =>
+  [...Array(dim ** 2)].map(() => 0) as Matrix;
+
 export const identity = (dim: MatrixDimension): Matrix => {
-  switch (dim) {
-    case 2:
-      return [1, 0, 0, 1];
-    case 3:
-      return [
-        1, 0, 0,
-        0, 1, 0,
-        0, 0, 1,
-      ];
-    case 4:
-      return [
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1,
-      ];
-    default:
-      throw TypeError(
-        `Expected dimension to be 2, 3, 4, got ${dim}`);
+  const M: Matrix = zeros(dim);
+  for (let i = 0; i < dim; i++) {
+    M[(i * dim) + i] = 1;
   }
+  return M;
 }
 
 const multiply = <M extends Matrix>(d: MatrixDimension) =>
@@ -75,8 +65,7 @@ const multiply = <M extends Matrix>(d: MatrixDimension) =>
     for (let j = 0; j < d; j++) {
       result[(d * i) + j] = 0;
       for (let k = 0; k < d; k++) {
-        result[(d * i) + j] +=
-          A[(d * i) + k] * B[(d * k) + j];
+        result[(d * i) + j] += A[(d * i) + k] * B[(d * k) + j];
       }
     }
     return result;
@@ -94,21 +83,32 @@ export const translate =
     return result;
   };
 
-const scale = <M extends Matrix>(d: MatrixDimension) =>
-  (A: M, ...scale: number[]) => {
-    const S = identity(d) as M;
-    for (let i = 0; i < d; i++) {
+/**
+ * Apply a scale transformation to a matrix.
+ * 
+ * If you're applying the transform to a 4D matrix
+ * and less than 4 numbers are supplied, then it
+ * will not scale the 4th diagonal element.
+ * 
+ * TODO other dimensions 
+ */
+export const scale = <M extends Matrix>(A: M, ...scale: number[]) => {
+  if (!scale.length) {
+    throw new Error('You must provide at least one number to scale a matrix');
+  }
+  const d = dimension(A);
+  const S = identity(d) as M;
+  for (let i = 0; i < d; i++) {
+    if (i === 3 && scale.length < 4) {
+      S[(d * i) + i] = 1;
+    } else {
       S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
     }
-    let m = multiply<M>(d)(S, A);
-    console.log(S, A, m);
-    return m;
-  };
-
-/**
- * Scale the diagonal values of a 4D matrix.
- */
-export const scale4 = scale<Matrix4>(4);
+  }
+  let m = multiply<M>(d)(S, A);
+  console.log(S, A, m);
+  return m;
+};
 
 type Quaternion = [number, number, number, number];
 
@@ -143,8 +143,10 @@ const normalize3 = (v: Vector3): Vector3 => {
 /**
  * Apply a 3D rotation of theta radians around the given axis
  * to a 4D matrix.
+ * 
+ * TODO other dimensions
  */
-export const rotate4 =
+export const rotate =
   (M: Matrix4, theta: number, ...axis: Vector3): Matrix4 => {
     axis = normalize3(axis);
     const s = Math.sin(theta / 2);
@@ -165,7 +167,7 @@ const dot3 = (a: Vector3, b: Vector3): number =>
 
 const cross = (a: Vector3, b: Vector3): Vector3 => [
   (a[1] * b[2]) - (a[2] * b[1]),
-  (a[0] * b[2]) - (a[2] * b[0]),
+  (a[2] * b[0]) - (a[0] * b[2]),
   (a[0] * b[1]) - (a[1] * b[0]),
 ];
 
@@ -236,3 +238,80 @@ export const perspective =
       0, 0, out14,  0,
     ];
   };
+
+const cofactor = <M extends Matrix>(A: M, p: number, q: number): M => {
+  const dim = dimension(A);
+  const out = zeros(dim - 1 as MatrixDimension) as M;
+  let i = 0;
+  let j = 0;
+  for (let row = 0; row < dim; row++)
+  for (let col = 0; col < dim; col++) {
+    if (row === p || col === q) continue;
+    out[(i * (dim - 1)) + j] = A[(row * dim) + col];
+    j++;
+    if (j === dim - 1) {
+      j = 0;
+      i++;
+    }
+  }
+  return out;
+};
+
+const determinant = <M extends Matrix>(A: M): number => {
+  const dim = dimension(A);
+  if (dim === 2) return A[0] * A[3] - A[1] * A[2];
+  let result = 0;
+  let sign = 1;
+  const tmp = zeros(dim) as M;
+  for (let i = 0; i < dim; i++) {
+    if (A[i * dim] === 0) continue;
+    result += sign * A[i * dim] * determinant(cofactor<M>(A, i, 0));
+    sign = -sign;
+  }
+  return result;
+};
+
+const adjoint = <M extends Matrix>(A: M): M => {
+  const d = dimension(A);
+  const out = zeros(d) as M;
+  for (let i = 0; i < d; i++)
+  for (let j = 0; j < d; j++) {
+    const sign = (i + j) % 2 ? -1 : 1;
+    // Flip i and j to get the transpose of the cofactor matrix.
+    out[(j * d) + i] = sign * determinant(cofactor(A, i, j)); 
+  }
+  return out;
+}
+
+/**
+ * Compute the inverse of a given matrix.
+ * Throws an error if the matrix is singular, i.e. det(A) = 0.
+ */
+export const inverse = <M extends Matrix>(A: M): M => {
+  const det = determinant(A);
+  if (!det) {
+    throw new Error('Cannot take the determinant of a singular matrix');
+  }
+  const adj = adjoint(A) as M;
+  const d = dimension(A);
+  const out = zeros(d) as M;
+  for (let i = 0; i < d; i++)
+  for (let j = 0; j < d; j++) {
+    // inv(A) = adj(A) / det(A)
+    out[(i * d) + j] = adj[(i * d) + j] / det;
+  }
+  return out;
+}
+
+/**
+ * Compute the transpose of a matrix.
+ */
+export const transpose = <M extends Matrix>(A: M): M => {
+  const d = dimension(A);
+  const T = zeros(d) as M;
+  for (let i = 0; i < d; i++)
+  for (let j = 0; j < d; j++) {
+    T[(j * d) + i] = A[(i * d) + j];
+  }
+  return T;
+}

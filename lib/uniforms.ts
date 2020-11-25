@@ -8,11 +8,13 @@ import {
   Vector3,
   Vector4,
   identity,
+  inverse,
   isPowerOfTwo,
   lookAt,
   perspective,
-  rotate4,
-  scale4,
+  rotate,
+  scale,
+  transpose,
   translate,
 } from './math';
 
@@ -51,7 +53,7 @@ type BytesUniformType =
 class UniformBase<Data> {
   constructor(
     protected readonly type: UniformType,
-    protected readonly name: string,
+    public readonly name: string,
     protected data?: Data,
   ) {}
 
@@ -155,10 +157,13 @@ class SequenceUniform extends UniformBase<Float32List>
     switch (this.dimension) {
       case 2:
         gl.uniform2fv(loc, this.data);
+        break;
       case 3:
         gl.uniform3fv(loc, this.data);
+        break;
       case 4:
         gl.uniform4fv(loc, this.data);
+        break;
     }
   }
 
@@ -166,10 +171,13 @@ class SequenceUniform extends UniformBase<Float32List>
     switch (this.dimension) {
       case 2:
         gl.uniformMatrix2fv(loc, false, this.data);
+        break;
       case 3:
         gl.uniformMatrix3fv(loc, false, this.data);
+        break;
       case 4:
         gl.uniformMatrix4fv(loc, false, this.data);
+        break;
     }
   }
 
@@ -248,11 +256,13 @@ export const IdentityMat4Uniform = matrixUniform(4, identity(4));
  * to a 4D matrix.
  */
 export const Translate = (x: number, y: number, z: number) =>
-  (u: SequenceUniform) => {
+  (u: SequenceUniform, name?: string): SequenceUniform => {
     UniformBase.checkType(u, UniformType.MATRIX);
     SequenceUniform.checkDimension(u, 4);
-    u.set(translate(UniformBase.data(u) as Matrix4, x, y, z))
-    return u;
+    return sequenceUniform(UniformType.MATRIX, u.dimension)(
+      name || u.name,
+      translate(UniformBase.data(u) as Matrix4, x, y, z),
+    ) as SequenceUniform;
   };
 
 /**
@@ -264,8 +274,10 @@ export const Translate = (x: number, y: number, z: number) =>
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
   SequenceUniform.checkDimension(u, 4);
-  u.set(scale4(UniformBase.data(u) as Matrix4, ...args));
-  return u;
+  return sequenceUniform(UniformType.MATRIX, u.dimension)(
+    u.name,
+    scale(UniformBase.data(u) as Matrix4, ...args),
+  ) as SequenceUniform;
 };
 
 /**
@@ -277,8 +289,10 @@ export const Scale = (...args: number[]) => (u: SequenceUniform) => {
 export const Rotate = (theta: number, ...axis: Vector3) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
   SequenceUniform.checkDimension(u, 4);
-  u.set(rotate4(UniformBase.data(u) as Matrix4, theta, ...axis));
-  return u;
+  return sequenceUniform(UniformType.MATRIX, u.dimension)(
+    u.name,
+    rotate(UniformBase.data(u) as Matrix4, theta, ...axis),
+  ) as SequenceUniform;
 };
 
 interface ModelMatOptions {
@@ -291,7 +305,7 @@ interface ModelMatOptions {
  * Sends a model matrix to a shader as a uniform that applies
  * a scale, rotation, and translation (in that order).
  */
-export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}) => {
+export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}): SequenceUniform => {
   let u = IdentityMat4Uniform(name) as SequenceUniform;
   if (opts.scale) {
     if (typeof opts.scale === 'number') {
@@ -303,6 +317,22 @@ export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}) => {
   if (opts.translate) u = Translate(...opts.translate)(u);
   if (opts.rotate) u = Rotate(...opts.rotate)(u);
   return u;
+};
+
+/**
+ * Sends the resulting normal matrix for a given
+ * model matrix to a shader.
+ * 
+ * If M is the value of the model matrix uniform, then
+ * the normal matrix uniform will receive
+ */
+export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
+  UniformBase.checkType(modelMat, UniformType.MATRIX);
+  SequenceUniform.checkDimension(modelMat, 4);
+  return sequenceUniform(UniformType.MATRIX, 4)(
+    name,
+    transpose(inverse(UniformBase.data(modelMat) as Matrix4)),
+  ) as SequenceUniform;
 };
 
 /**
