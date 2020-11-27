@@ -58,18 +58,19 @@ export const identity = (dim: MatrixDimension): Matrix => {
   return M;
 }
 
-const multiply = <M extends Matrix>(d: MatrixDimension) =>
-  (A: M, B: M) => {
-    const result = identity(d) as M;
-    for (let i = 0; i < d; i++)
-    for (let j = 0; j < d; j++) {
-      result[(d * i) + j] = 0;
-      for (let k = 0; k < d; k++) {
-        result[(d * i) + j] += A[(d * i) + k] * B[(d * k) + j];
-      }
-    }
-    return result;
-  };
+const multiply = <M extends Matrix>(A: M, B: M) => {
+  const d = dimension(A);
+  if (d !== dimension(B)) {
+    throw new Error('Cannot multiply matrices with a different dimension');
+  }
+  const result = zeros(d) as M;
+  for (let i = 0; i < d; i++)
+  for (let j = 0; j < d; j++)
+  for (let k = 0; k < d; k++) {
+    result[(d * i) + j] += A[(d * i) + k] * B[(d * k) + j];
+  }
+  return result;
+};
 
 /**
  * Apply a 3D transmation to a 4-dimensional matrix, M.
@@ -105,9 +106,7 @@ export const scale = <M extends Matrix>(A: M, ...scale: number[]) => {
       S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
     }
   }
-  let m = multiply<M>(d)(S, A);
-  console.log(S, A, m);
-  return m;
+  return multiply<M>(S, A);
 };
 
 type Quaternion = [number, number, number, number];
@@ -156,7 +155,7 @@ export const rotate =
       axis[1] * s,
       axis[2] * s,
     ];
-    return multiply(4)(quatToRotationMat4(q), M) as Matrix4;
+    return multiply(quatToRotationMat4(q), M) as Matrix4;
   };
 
 const subtract3 = (a: Vector3, b: Vector3): Vector3 =>
@@ -262,10 +261,9 @@ const determinant = <M extends Matrix>(A: M): number => {
   if (dim === 2) return A[0] * A[3] - A[1] * A[2];
   let result = 0;
   let sign = 1;
-  const tmp = zeros(dim) as M;
-  for (let i = 0; i < dim; i++) {
-    if (A[i * dim] === 0) continue;
-    result += sign * A[i * dim] * determinant(cofactor<M>(A, i, 0));
+  for (let row = 0; row < dim; row++) {
+    if (A[row * dim] === 0) continue;
+    result += sign * A[row * dim] * determinant(cofactor(A, row, 0));
     sign = -sign;
   }
   return result;
@@ -277,7 +275,7 @@ const adjoint = <M extends Matrix>(A: M): M => {
   for (let i = 0; i < d; i++)
   for (let j = 0; j < d; j++) {
     const sign = (i + j) % 2 ? -1 : 1;
-    // Flip i and j to get the transpose of the cofactor matrix.
+    // The adjoint is the transpose of the cofactor matrix.
     out[(j * d) + i] = sign * determinant(cofactor(A, i, j)); 
   }
   return out;

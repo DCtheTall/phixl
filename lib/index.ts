@@ -24,14 +24,13 @@ export interface ShaderOptions {
   // GLenum for primitive type to render. See:
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
   mode?: number;
-  drawElements?: boolean;
+  indices?: BufferSource;
 }
 
-const defaultOpts: Required<Omit<ShaderOptions, 'viewport'>> = {
+const defaultOpts: Required<Omit<ShaderOptions, 'viewport' | 'indices'>> = {
   attributes: [],
   uniforms: [],
   mode: WebGLRenderingContext.TRIANGLE_STRIP,
-  drawElements: false,
 };
 
 /**
@@ -48,8 +47,13 @@ export const Shader = (nVertices: number,
       const program = createProgram(gl, vertexSrc, fragmentSrc);
       gl.useProgram(program);
 
+      if (init.indices) {
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, init.indices, gl.STATIC_DRAW);
+      }
+
       for (const attr of init.attributes) {
-        attr(gl, program, init.drawElements);
+        attr(gl, program);
       }
 
       for (const uniform of init.uniforms) {
@@ -60,7 +64,7 @@ export const Shader = (nVertices: number,
         gl, null, null, nVertices,
         init.viewport || [0, 0, target.width, target.height],
         init.mode || defaultOpts.mode,
-        init.drawElements);
+        !!init.indices);
       return;
     }
     throw new Error('Not implemented');

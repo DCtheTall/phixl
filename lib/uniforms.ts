@@ -27,10 +27,14 @@ enum UniformType {
   TEXTURE = 'texture',
 }
 
+type IsOrReturns<T> = T | (() => T);
+
+type UniformSource = number | Float32List | TexImageSource;
+
 /**
  * Different data types we send to shaders in uniforms.
  */
-export type UniformData = number | Float32List | TexImageSource;
+export type UniformData = IsOrReturns<UniformSource>;
 
 /**
  * Interface for abstraction for sending uniforms to shaders.
@@ -44,7 +48,12 @@ export interface Uniform<Data extends UniformData> {
   /**
    * Set the data that it sends to the shader.
    */
-  set: (data: Data) => void;
+  set: (data: Data) => Uniform<Data>;
+
+  /**
+   * Get the current data for this uniform.
+   */
+  get: () => Data;
 }
 
 type BytesUniformType =
@@ -59,6 +68,12 @@ class UniformBase<Data> {
 
   set(data: Data) {
     this.data = data;
+    return this;
+  }
+
+  get() {
+    if (typeof this.data === 'function') return this.data();
+    return this.data;
   }
 
   static checkType<Data>(u: UniformBase<Data>, wantType: UniformType) {
@@ -67,27 +82,23 @@ class UniformBase<Data> {
         `Expected uniform with type ${wantType} got type ${u.type}`);
     }
   }
-
-  static data<Data>(u: UniformBase<Data>) {
-    return u.data;
-  }
 }
 
 class BytesUniform extends UniformBase<number> implements Uniform<number> {
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (isNaN(this.data)) {
+    if (isNaN(this.get())) {
       throw TypeError(`Data for ${this.type} uniform should be a number`);
     }
     const loc = gl.getUniformLocation(program, this.name);
     switch (this.type) {
       case UniformType.BOOLEAN:
-        gl.uniform1i(loc, this.data);
+        gl.uniform1i(loc, this.get());
         break;
       case UniformType.FLOAT:
-        gl.uniform1f(loc, this.data);
+        gl.uniform1f(loc, this.get());
         break;
       case UniformType.INTEGER:
-        gl.uniform1i(loc, this.data);
+        gl.uniform1i(loc, this.get());
         break;
     }
   }
@@ -118,8 +129,10 @@ export const IntegerUniform = bytesUniform(UniformType.INTEGER);
 
 type SequenceUniformType = UniformType.VECTOR | UniformType.MATRIX;
 
-class SequenceUniform extends UniformBase<Float32List>
-  implements Uniform<Float32List> {
+type SequenceUniformData = IsOrReturns<Float32List>;
+
+class SequenceUniform extends UniformBase<SequenceUniformData>
+  implements Uniform<SequenceUniformData> {
   constructor(
     type: SequenceUniformType,
     name: string,
@@ -131,12 +144,12 @@ class SequenceUniform extends UniformBase<Float32List>
 
   private validateData() {
     if (this.type == UniformType.VECTOR) {
-      if (this.data.length != this.dimension) {
+      if (this.get().length != this.dimension) {
         throw new TypeError(
             `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
     } else {
-      if (this.data.length != this.dimension ** 2) {
+      if (this.get().length != this.dimension ** 2) {
         throw new TypeError(
             `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
@@ -156,13 +169,13 @@ class SequenceUniform extends UniformBase<Float32List>
   private sendVector(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
     switch (this.dimension) {
       case 2:
-        gl.uniform2fv(loc, this.data);
+        gl.uniform2fv(loc, this.get());
         break;
       case 3:
-        gl.uniform3fv(loc, this.data);
+        gl.uniform3fv(loc, this.get());
         break;
       case 4:
-        gl.uniform4fv(loc, this.data);
+        gl.uniform4fv(loc, this.get());
         break;
     }
   }
@@ -170,20 +183,21 @@ class SequenceUniform extends UniformBase<Float32List>
   private sendMatrix(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
     switch (this.dimension) {
       case 2:
-        gl.uniformMatrix2fv(loc, false, this.data);
+        gl.uniformMatrix2fv(loc, false, this.get());
         break;
       case 3:
-        gl.uniformMatrix3fv(loc, false, this.data);
+        gl.uniformMatrix3fv(loc, false, this.get());
         break;
       case 4:
-        gl.uniformMatrix4fv(loc, false, this.data);
+        gl.uniformMatrix4fv(loc, false, this.get());
         break;
     }
   }
 
-  set(data: Float32List) {
+  set(data: SequenceUniformData) {
     this.data = data;
     this.validateData();
+    return this;
   }
 
   static checkDimension(u: SequenceUniform, wantDimension: number) {
@@ -256,13 +270,10 @@ export const IdentityMat4Uniform = matrixUniform(4, identity(4));
  * to a 4D matrix.
  */
 export const Translate = (x: number, y: number, z: number) =>
-  (u: SequenceUniform, name?: string): SequenceUniform => {
+  (u: SequenceUniform): SequenceUniform => {
     UniformBase.checkType(u, UniformType.MATRIX);
     SequenceUniform.checkDimension(u, 4);
-    return sequenceUniform(UniformType.MATRIX, u.dimension)(
-      name || u.name,
-      translate(UniformBase.data(u) as Matrix4, x, y, z),
-    ) as SequenceUniform;
+    return u.set(translate(u.get() as Matrix4, x, y, z));
   };
 
 /**
@@ -274,10 +285,7 @@ export const Translate = (x: number, y: number, z: number) =>
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
   SequenceUniform.checkDimension(u, 4);
-  return sequenceUniform(UniformType.MATRIX, u.dimension)(
-    u.name,
-    scale(UniformBase.data(u) as Matrix4, ...args),
-  ) as SequenceUniform;
+  return u.set(scale(u.get() as Matrix4, ...args));
 };
 
 /**
@@ -286,14 +294,12 @@ export const Scale = (...args: number[]) => (u: SequenceUniform) => {
  *
  * TODO handle other dimensions.
  */
-export const Rotate = (theta: number, ...axis: Vector3) => (u: SequenceUniform) => {
-  UniformBase.checkType(u, UniformType.MATRIX);
-  SequenceUniform.checkDimension(u, 4);
-  return sequenceUniform(UniformType.MATRIX, u.dimension)(
-    u.name,
-    rotate(UniformBase.data(u) as Matrix4, theta, ...axis),
-  ) as SequenceUniform;
-};
+export const Rotate = (theta: number, ...axis: Vector3) =>
+  (u: SequenceUniform) => {
+    UniformBase.checkType(u, UniformType.MATRIX);
+    SequenceUniform.checkDimension(u, 4);
+    return u.set(rotate(u.get() as Matrix4, theta, ...axis));
+  };
 
 interface ModelMatOptions {
   scale?: number | Vector3;
@@ -331,7 +337,7 @@ export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
   SequenceUniform.checkDimension(modelMat, 4);
   return sequenceUniform(UniformType.MATRIX, 4)(
     name,
-    transpose(inverse(UniformBase.data(modelMat) as Matrix4)),
+    () => transpose(inverse(modelMat.get() as Matrix4)),
   ) as SequenceUniform;
 };
 
@@ -371,9 +377,9 @@ class Texture2DUniformImpl extends UniformBase<TexImageSource>
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(
-      gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.data);
+      gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.get());
 
-    if (isPowerOfTwo(this.data.width) && isPowerOfTwo(this.data.height)) {
+    if (isPowerOfTwo(this.get().width) && isPowerOfTwo(this.get().height)) {
       gl.generateMipmap(gl.TEXTURE_2D);
     } else {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

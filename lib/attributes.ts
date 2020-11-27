@@ -6,8 +6,7 @@
  * Abstraction for sending data to shaders in attributes.
  */
 export type Attribute = (gl: WebGLRenderingContext,
-                         program: WebGLProgram,
-                         drawElements: boolean) => void;
+                         program: WebGLProgram) => void;
 
 type AttributeBuilder = (name: string, data: BufferSource) => Attribute;
 
@@ -16,16 +15,11 @@ type AttributeBuilder = (name: string, data: BufferSource) => Attribute;
  */
 const attribute = (dimension: number): AttributeBuilder =>
   (name: string, data: BufferSource, indices?: BufferSource) =>
-    (gl: WebGLRenderingContext, program: WebGLProgram, drawElements: boolean) => {
-      if (drawElements && !indices) {
-        throw new Error(`Indices not supplied for ${name} when using gl.drawElements`);
-      }
+    (gl: WebGLRenderingContext, program: WebGLProgram) => {
       const loc = gl.getAttribLocation(program, name);
       gl.enableVertexAttribArray(loc);
       gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
       gl.vertexAttribPointer(loc, dimension, gl.FLOAT, false, 0, 0);
     };
 

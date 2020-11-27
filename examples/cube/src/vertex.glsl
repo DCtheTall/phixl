@@ -18,6 +18,6 @@ void main() {
   vec4 pos = u_ModelMat * vec4(a_Position, 1.0);
   v_Position = pos.xyz;
   vec4 norm = u_NormalMat * vec4(a_Normal, 1.0);
-  v_Normal = a_Normal;
+  v_Normal = norm.xyz;
   gl_Position = u_PerspectiveMat * u_ViewMat * pos;
 }

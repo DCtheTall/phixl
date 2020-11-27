@@ -1,5 +1,10 @@
 /**
- * Initialize a WebGL context.
+ * Module for GL context related operations.
+ */
+
+/**
+ * Get the current WebGL context.
+ * If this is the first time you 
  */
 export function createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
   const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true})
@@ -65,6 +70,7 @@ export function render(gl: WebGLRenderingContext,
                        mode: number,
                        drawElements: boolean) {
   // TODO handle rendering to a frame buffer.
+  gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
