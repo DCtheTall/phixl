@@ -3,13 +3,19 @@
  */
 
 import {
+  UniformType,
+  send2DTexture,
+  sendBytesUniform,
+  sendMatrixUniform,
+  sendVectorUniform,
+} from './gl';
+import {
   Matrix,
   Matrix4,
   Vector3,
   Vector4,
   identity,
   inverse,
-  isPowerOfTwo,
   lookAt,
   perspective,
   rotate,
@@ -17,15 +23,6 @@ import {
   transpose,
   translate,
 } from './math';
-
-enum UniformType {
-  BOOLEAN = 'boolean',
-  FLOAT = 'float',
-  INTEGER = 'integer',
-  VECTOR = 'vector',
-  MATRIX = 'matrix',
-  TEXTURE = 'texture',
-}
 
 type IsOrReturns<T> = T | (() => T);
 
@@ -89,18 +86,7 @@ class BytesUniform extends UniformBase<number> implements Uniform<number> {
     if (isNaN(this.get())) {
       throw TypeError(`Data for ${this.type} uniform should be a number`);
     }
-    const loc = gl.getUniformLocation(program, this.name);
-    switch (this.type) {
-      case UniformType.BOOLEAN:
-        gl.uniform1i(loc, this.get());
-        break;
-      case UniformType.FLOAT:
-        gl.uniform1f(loc, this.get());
-        break;
-      case UniformType.INTEGER:
-        gl.uniform1i(loc, this.get());
-        break;
-    }
+    sendBytesUniform(gl, program, this.name, this.type, this.get());
   }
 }
 
@@ -146,51 +132,22 @@ class SequenceUniform extends UniformBase<SequenceUniformData>
     if (this.type == UniformType.VECTOR) {
       if (this.get().length != this.dimension) {
         throw new TypeError(
-            `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
+          `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
     } else {
       if (this.get().length != this.dimension ** 2) {
         throw new TypeError(
-            `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
+          `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
     }
   }
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     this.validateData();
-    const loc = gl.getUniformLocation(program, this.name);
-      if (this.type === UniformType.VECTOR) {
-        this.sendVector(gl, loc);
-      } else {
-        this.sendMatrix(gl, loc);
-      }
-  }
-
-  private sendVector(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
-    switch (this.dimension) {
-      case 2:
-        gl.uniform2fv(loc, this.get());
-        break;
-      case 3:
-        gl.uniform3fv(loc, this.get());
-        break;
-      case 4:
-        gl.uniform4fv(loc, this.get());
-        break;
-    }
-  }
-
-  private sendMatrix(gl: WebGLRenderingContext, loc: WebGLUniformLocation) {
-    switch (this.dimension) {
-      case 2:
-        gl.uniformMatrix2fv(loc, false, this.get());
-        break;
-      case 3:
-        gl.uniformMatrix3fv(loc, false, this.get());
-        break;
-      case 4:
-        gl.uniformMatrix4fv(loc, false, this.get());
-        break;
+    if (this.type === UniformType.VECTOR) {
+      sendVectorUniform(gl, program, this.name, this.dimension, this.get());
+    } else {
+      sendMatrixUniform(gl, program, this.name, this.dimension, this.get());
     }
   }
 
@@ -279,12 +236,9 @@ export const Translate = (x: number, y: number, z: number) =>
 /**
  * Create a transform on a Mat4Uniform that applies a scale
  * transformation. Takes 1, 3 or 4 arguments.
- *
- * TODO handle other dimensions.
  */
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
-  SequenceUniform.checkDimension(u, 4);
   return u.set(scale(u.get() as Matrix4, ...args));
 };
 
@@ -358,37 +312,10 @@ export const PerspectiveMatUniform =
      sequenceUniform(UniformType.MATRIX, 4)(
        name, perspective(fovy, aspect, near, far));
 
-const textureRegistry = new WeakMap<WebGLProgram, number>();
-
 class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    // Get the next available texture address.
-    const addr = textureRegistry.get(program) || 0;
-    if (addr === 32) {
-      throw new Error('Already at maximum number of textures for this program');
-    }
-    // Set the next available address in the map.
-    textureRegistry.set(program, addr + 1);
-
-    const texture = gl.createTexture();
-    const loc = gl.getUniformLocation(program, name);
-    gl.uniform1i(loc, addr);
-
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.get());
-
-    if (isPowerOfTwo(this.get().width) && isPowerOfTwo(this.get().height)) {
-      gl.generateMipmap(gl.TEXTURE_2D);
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
-
-    gl.activeTexture(gl.TEXTURE0 + addr);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    send2DTexture(gl, program, this.get());
   }
 }
 

@@ -2,6 +2,8 @@
  * @fileoverview Shader attributes module.
  */
 
+import {sendAttribute, sendMatrixAttribute} from './gl';
+
 /**
  * Abstraction for sending data to shaders in attributes.
  */
@@ -14,14 +16,9 @@ type AttributeBuilder = (name: string, data: BufferSource) => Attribute;
  * Returns an attribute builder function for the appropriate type.
  */
 const attribute = (dimension: number): AttributeBuilder =>
-  (name: string, data: BufferSource, indices?: BufferSource) =>
-    (gl: WebGLRenderingContext, program: WebGLProgram) => {
-      const loc = gl.getAttribLocation(program, name);
-      gl.enableVertexAttribArray(loc);
-      gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-      gl.vertexAttribPointer(loc, dimension, gl.FLOAT, false, 0, 0);
-    };
+  (name: string, data: BufferSource) =>
+    (gl: WebGLRenderingContext, program: WebGLProgram) =>
+      sendAttribute(gl, program, name, data, dimension);
 
 /**
  * Sends a float attribute to a shader.
@@ -47,15 +44,8 @@ type MatAttributeBuilder = (name: string, data: BufferSource[]) => Attribute;
 
 const matrixAttribute = (dimension: number): MatAttributeBuilder =>
   (name: string, data: BufferSource[]) =>
-    (gl: WebGLRenderingContext, program: WebGLProgram) => {
-      const loc = gl.getAttribLocation(program, name);
-      for (let i = 0; i < dimension; i++) {
-        gl.enableVertexAttribArray(loc + i);
-        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-        gl.bufferData(gl.ARRAY_BUFFER, data[i], gl.STATIC_DRAW);
-        gl.vertexAttribPointer(loc + i, dimension, gl.FLOAT, false, 0, 0);
-      }
-    };
+    (gl: WebGLRenderingContext, program: WebGLProgram) =>
+      sendMatrixAttribute(gl, program, name, data, dimension);
 
 /**
  * Sends a 2-dimensional matrix attribute to a shader.

@@ -90,20 +90,22 @@ export const translate =
  * If you're applying the transform to a 4D matrix
  * and less than 4 numbers are supplied, then it
  * will not scale the 4th diagonal element.
- * 
- * TODO other dimensions 
  */
-export const scale = <M extends Matrix>(A: M, ...scale: number[]) => {
-  if (!scale.length) {
+export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
+  if (!args.length) {
     throw new Error('You must provide at least one number to scale a matrix');
   }
   const d = dimension(A);
+  if (d === 4 && args.length === 2) {
+    throw new Error(
+      'You must provide 1, 3, or 4 arguments to scale for a 4D matrix');
+  }
   const S = identity(d) as M;
   for (let i = 0; i < d; i++) {
-    if (i === 3 && scale.length < 4) {
+    if (i === 3 && scale.length === 3) {
       S[(d * i) + i] = 1;
     } else {
-      S[(d * i) + i] = Number(isNaN(scale[i]) ? scale[0] : scale[i]);
+      S[(d * i) + i] = Number(isNaN(args[i]) ? args[0] : args[i]);
     }
   }
   return multiply<M>(S, A);

@@ -3,7 +3,7 @@
  */
 
 import {Attribute} from './attributes';
-import {Viewport, createContext, createProgram, render} from './gl';
+import {Viewport, context, program, render, sendIndices} from './gl';
 import {Uniform, UniformData} from './uniforms';
 
 export * from './attributes';
@@ -42,22 +42,17 @@ export const Shader = (nVertices: number,
                        init: ShaderOptions = defaultOpts): RenderFunc =>
   (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
-      const gl = createContext(target);
+      const gl = context(target);
 
-      const program = createProgram(gl, vertexSrc, fragmentSrc);
-      gl.useProgram(program);
+      const p = program(gl, vertexSrc, fragmentSrc);
+      gl.useProgram(p);
 
-      if (init.indices) {
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, init.indices, gl.STATIC_DRAW);
-      }
-
+      if (init.indices) sendIndices(gl, init.indices);
       for (const attr of init.attributes) {
-        attr(gl, program);
+        attr(gl, p);
       }
-
       for (const uniform of init.uniforms) {
-        uniform.send(gl, program);
+        uniform.send(gl, p);
       }
 
       render(
