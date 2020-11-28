@@ -35,6 +35,8 @@ const defaultOpts: Required<Omit<ShaderOptions, 'viewport' | 'indices'>> = {
 
 /**
  * Create a shader function to render to a target.
+ * 
+ * TODO support animations
  */
 export const Shader = (nVertices: number,
                        vertexSrc: string,

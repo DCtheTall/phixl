@@ -206,18 +206,23 @@ export const sendVectorUniform = (gl: WebGLRenderingContext,
   }
 };
 
-const textureAddresses = new WeakMap<WebGLProgram, number>();
+const nextTextureAddress = new WeakMap<WebGLProgram, number>();
 
+/**
+ * Send a 2D texture as a uniform to a shader.
+ * 
+ * TODO support animations.
+ */
 export const send2DTexture = (gl: WebGLRenderingContext,
                               program: WebGLProgram,
                               data: TexImageSource) => {
   // Get the next available texture address.
-  const addr = textureAddresses.get(program) || 0;
+  const addr = nextTextureAddress.get(program) || 0;
   if (addr === 32) {
     throw new Error('Already at maximum number of textures for this program');
   }
   // Set the next available address in the map.
-  textureAddresses.set(program, addr + 1);
+  nextTextureAddress.set(program, addr + 1);
 
   const texture = gl.createTexture();
   const loc = gl.getUniformLocation(program, name);

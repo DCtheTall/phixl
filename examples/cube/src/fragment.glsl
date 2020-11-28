@@ -5,18 +5,19 @@ varying vec3 v_Position;
 varying vec3 v_Normal;
 
 uniform sampler2D u_Texture;
-uniform vec3 u_LightPos;
-uniform vec3 u_AmbientLight;
-uniform vec3 u_DiffuseLight;
-uniform vec3 u_SpecularLight;
-uniform float u_SpecularExp;
+
+const vec3 kLightPos = vec3(0.0, 80.0, 0.0);
+const vec3 kAmbientLight = vec3(0.3, 0.35, 0.4);
+const vec3 kDiffuseLight = vec3(1.0, 1.0, 0.8);
+const vec3 kSpecularLight = vec3(1.0);
+const float kSpecularExp = 50.0;
 
 void main() {
-  vec3 color = u_AmbientLight;
-  vec3 lightDir = normalize(u_LightPos - v_Position);
+  vec3 color = kAmbientLight;
+  vec3 lightDir = normalize(kLightPos - v_Position);
   float diffuse = clamp(dot(lightDir, normalize(v_Normal)), 0.0, 1.0);
-  color += diffuse * u_DiffuseLight;
-  color += pow(diffuse, u_SpecularExp) * u_SpecularLight;
+  color += diffuse * kDiffuseLight;
+  color += pow(diffuse, kSpecularExp) * kSpecularLight;
   color *= texture2D(u_Texture, v_TexCoord).xyz;
 
   gl_FragColor = vec4(color, 1.0);

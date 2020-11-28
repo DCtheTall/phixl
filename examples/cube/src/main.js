@@ -14,7 +14,6 @@ const {
   Vec3Attribute,
   Vec3Uniform,
   ViewMatUniform,
-  Rotate,
 } = require('../../../dist');
 
 function main() {
@@ -25,9 +24,9 @@ function main() {
   const img = document.getElementById('texture');
 
   const modelMat = ModelMatUniform('u_ModelMat', {
+    translate: [0, 0, 5],
+    scale: 15,
     rotate: [Math.PI / 4, 1, 1, 0],
-    translate: [0, 0, -10],
-    scale: 3,
   });
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
@@ -40,17 +39,18 @@ function main() {
     ],
     uniforms: [
       modelMat,
-      Texture2DUniform('u_Texture', img),
-      ViewMatUniform('u_ViewMat', [0, 0, 20], [0, 0, 0], [0, 1, 0]),
-      PerspectiveMatUniform('u_PerspectiveMat', Math.PI / 4, 1, 1, 1e6),
-      Vec3Uniform('u_LightPos', [0, 100, 0]),
-      Vec3Uniform('u_AmbientLight', [0.3, 0.3, 0.3]),
-      Vec3Uniform('u_DiffuseLight', [1, 1, 0.5]),
-      Vec3Uniform('u_SpecularLight', [1, 1, 1]),
-      FloatUniform('u_SpecularExp', 50),
+      ViewMatUniform(
+        'u_ViewMat', /* eye */ [0, 0, 5], /* at */ [0, 0, 0],
+        /* up */ [0, 1, 0]),
+      PerspectiveMatUniform(
+        'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1,
+        /* near */ 1, /* far */ 1e6),
       NormalMatUniform('u_NormalMat', modelMat),
+      Texture2DUniform('u_Texture', img),
     ],
   });
+
+  // First render
   shader(canvas);
 }
 
