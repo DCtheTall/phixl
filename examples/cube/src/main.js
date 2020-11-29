@@ -4,15 +4,14 @@ const {
   CUBE_TEX_COORDS,
   CUBE_INDICES,
   CUBE_NORMALS,
-  FloatUniform,
   ModelMatUniform,
   NormalMatUniform,
   PerspectiveMatUniform,
+  Rotate,
   Shader,
   Texture2DUniform,
   Vec2Attribute,
   Vec3Attribute,
-  Vec3Uniform,
   ViewMatUniform,
 } = require('../../../dist');
 
@@ -26,8 +25,8 @@ function main() {
   const modelMat = ModelMatUniform('u_ModelMat', {
     translate: [0, 0, 5],
     scale: 15,
-    rotate: [Math.PI / 4, 1, 1, 0],
   });
+  const rotate = Rotate(Math.PI / 32, 1, 1, 0);
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
@@ -51,7 +50,10 @@ function main() {
   });
 
   // First render
-  shader(canvas);
+  setInterval(() => {
+    rotate(modelMat);
+    shader(canvas);
+  }, 50);
 }
 
 document.body.onload = main;

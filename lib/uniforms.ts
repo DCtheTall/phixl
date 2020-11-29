@@ -4,10 +4,12 @@
 
 import {
   UniformType,
+  newTextureAddress,
   send2DTexture,
   sendBytesUniform,
   sendMatrixUniform,
   sendVectorUniform,
+  texture2d,
 } from './gl';
 import {
   Matrix,
@@ -314,8 +316,17 @@ export const PerspectiveMatUniform =
 
 class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
+  private address: number;
+  private texture: WebGLTexture;
+
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    send2DTexture(gl, program, this.get());
+    if (this.texture) {
+      send2DTexture(gl, program, this.address, this.texture);
+    } else {
+      this.address = newTextureAddress(program);
+      this.texture = texture2d(gl, this.get());
+      send2DTexture(gl, program, this.address, this.texture);
+    }
   }
 }
 

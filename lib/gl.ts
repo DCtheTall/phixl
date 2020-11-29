@@ -209,29 +209,24 @@ export const sendVectorUniform = (gl: WebGLRenderingContext,
 const nextTextureAddress = new WeakMap<WebGLProgram, number>();
 
 /**
- * Send a 2D texture as a uniform to a shader.
- * 
- * TODO support animations.
+ * Get the next available address to 
  */
-export const send2DTexture = (gl: WebGLRenderingContext,
-                              program: WebGLProgram,
-                              data: TexImageSource) => {
-  // Get the next available texture address.
+export const newTextureAddress = (program: WebGLProgram): number => {
   const addr = nextTextureAddress.get(program) || 0;
   if (addr === 32) {
     throw new Error('Already at maximum number of textures for this program');
   }
   // Set the next available address in the map.
   nextTextureAddress.set(program, addr + 1);
+  return addr;
+};
 
+export const texture2d = (gl: WebGLRenderingContext,
+                          data: TexImageSource): WebGLTexture => {
   const texture = gl.createTexture();
-  const loc = gl.getUniformLocation(program, name);
-  gl.uniform1i(loc, addr);
-
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texImage2D(
     gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
-
   if (isPowerOfTwo(data.width) && isPowerOfTwo(data.height)) {
     gl.generateMipmap(gl.TEXTURE_2D);
   } else {
@@ -239,7 +234,20 @@ export const send2DTexture = (gl: WebGLRenderingContext,
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   }
+  return texture;
+};
 
+/**
+ * Send a 2D texture as a uniform to a shader.
+ * 
+ * TODO support animations.
+ */
+export const send2DTexture = (gl: WebGLRenderingContext,
+                              program: WebGLProgram,
+                              addr: number,
+                              texture: WebGLTexture) => {
+  const loc = gl.getUniformLocation(program, name);
+  gl.uniform1i(loc, addr);
   gl.activeTexture(gl.TEXTURE0 + addr);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };

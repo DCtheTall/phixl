@@ -17,6 +17,8 @@ export type Vector3 = [number, number, number];
  */
 export type Vector4 = [number, number, number, number];
 
+type Vector = Vector3 | Vector4;
+
 type Matrix2 = [
   number, number,
   number, number,
@@ -133,12 +135,12 @@ const quatToRotationMat4 = (q: Quaternion): Matrix4 => [
   0, 0, 0, 1,
 ];
 
-const normalize3 = (v: Vector3): Vector3 => {
+const normalize = <V extends Vector>(v: V): V => {
   const len = Math.hypot(...v);
   if (!len) {
     throw new Error('Cannot normalize a vector with no length');
   }
-  return [v[0] / len, v[1] / len, v[2] / len];
+  return v.map(x => x / len) as V;
 };
 
 /**
@@ -149,7 +151,7 @@ const normalize3 = (v: Vector3): Vector3 => {
  */
 export const rotate =
   (M: Matrix4, theta: number, ...axis: Vector3): Matrix4 => {
-    axis = normalize3(axis);
+    axis = normalize(axis);
     const s = Math.sin(theta / 2);
     const q: Quaternion = [
       Math.cos(theta / 2),
@@ -187,18 +189,18 @@ export const lookAt =
       if (Math.abs(z[i]) < epsilon) count++;
     }
     if (count === 3) return identity(4) as Matrix4;
-    z = normalize3(z);
+    z = normalize(z);
 
     let x: Vector3;
     try {
-      x = normalize3(cross(up, z));
+      x = normalize(cross(up, z));
     } catch (ok) {
       x = [0, 0, 0];
     }
 
     let y: Vector3;
     try {
-      y = normalize3(cross(z, x));
+      y = normalize(cross(z, x));
     } catch (ok) {
       y = [0, 0, 0];
     }
