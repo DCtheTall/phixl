@@ -211,14 +211,14 @@ const nextTextureAddress = new WeakMap<WebGLProgram, number>();
 /**
  * Get the next available address to 
  */
-export const newTextureAddress = (program: WebGLProgram): number => {
-  const addr = nextTextureAddress.get(program) || 0;
-  if (addr === 32) {
+export const newTextureOffset = (program: WebGLProgram): number => {
+  const offset = nextTextureAddress.get(program) || 0;
+  if (offset === 32) {
     throw new Error('Already at maximum number of textures for this program');
   }
   // Set the next available address in the map.
-  nextTextureAddress.set(program, addr + 1);
-  return addr;
+  nextTextureAddress.set(program, offset + 1);
+  return offset;
 };
 
 export const texture2d = (gl: WebGLRenderingContext,
@@ -244,11 +244,11 @@ export const texture2d = (gl: WebGLRenderingContext,
  */
 export const send2DTexture = (gl: WebGLRenderingContext,
                               program: WebGLProgram,
-                              addr: number,
+                              offset: number,
                               texture: WebGLTexture) => {
   const loc = gl.getUniformLocation(program, name);
-  gl.uniform1i(loc, addr);
-  gl.activeTexture(gl.TEXTURE0 + addr);
+  gl.uniform1i(loc, offset);
+  gl.activeTexture(gl.TEXTURE0 + offset);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 

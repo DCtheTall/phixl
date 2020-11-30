@@ -26,7 +26,7 @@ function main() {
     translate: [0, 0, 5],
     scale: 15,
   });
-  const rotate = Rotate(Math.PI / 32, 1, 1, 0);
+  const rotate = Rotate(Math.PI / 256, 1, 1, 0);
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
@@ -50,10 +50,18 @@ function main() {
   });
 
   // First render
-  setInterval(() => {
+  const animate = () => {
+    // Apply transformations to uniforms.
     rotate(modelMat);
+
+    // Render the shader on the given target.
     shader(canvas);
-  }, 50);
+
+    // Call animate again on next frame.
+    window.requestAnimationFrame(animate);
+  };
+  
+  animate();
 }
 
 document.body.onload = main;

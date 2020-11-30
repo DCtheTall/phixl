@@ -1,5 +1,7 @@
 /**
  * @fileoverview Math module contains utility methods.
+ * 
+ * All exported functions from this module should be pure functions.
  */
 
 /**
@@ -162,11 +164,11 @@ export const rotate =
     return multiply(quatToRotationMat4(q), M) as Matrix4;
   };
 
-const subtract3 = (a: Vector3, b: Vector3): Vector3 =>
-  [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const subtract = <V extends Vector>(a: V, b: V): V =>
+  a.map((cur, i) => cur - b[i]) as V;
 
-const dot3 = (a: Vector3, b: Vector3): number =>
-  (a[0] * b[0]) + (a[1] * b[1]) + (a[2] * b[2]);
+const dot = <V extends Vector>(a: V, b: V): number =>
+  a.reduce((acc, cur, i) => acc + (cur * b[i]), 0);
 
 const cross = (a: Vector3, b: Vector3): Vector3 => [
   (a[1] * b[2]) - (a[2] * b[1]),
@@ -183,7 +185,7 @@ const cross = (a: Vector3, b: Vector3): Vector3 => [
  */
 export const lookAt =
   (eye: Vector3, at: Vector3, up: Vector3, epsilon=1e-6): Matrix4 => {
-    let z = subtract3(eye, at);
+    let z = subtract(eye, at);
     let count = 0;
     for (let i = 0; i < 3; i++) {
       if (Math.abs(z[i]) < epsilon) count++;
@@ -209,7 +211,7 @@ export const lookAt =
       x[0], y[0], z[0], 0,
       x[1], y[1], z[1], 0,
       x[2], y[2], z[2], 0,
-      -dot3(x, eye), -dot3(y, eye), -dot3(z, eye), 1,
+      -dot(x, eye), -dot(y, eye), -dot(z, eye), 1,
     ];
   };
 

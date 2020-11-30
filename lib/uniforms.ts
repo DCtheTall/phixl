@@ -4,7 +4,7 @@
 
 import {
   UniformType,
-  newTextureAddress,
+  newTextureOffset,
   send2DTexture,
   sendBytesUniform,
   sendMatrixUniform,
@@ -28,12 +28,10 @@ import {
 
 type IsOrReturns<T> = T | (() => T);
 
-type UniformSource = number | Float32List | TexImageSource;
-
 /**
- * Different data types we send to shaders in uniforms.
+ * Types of data that uniforms accept.
  */
-export type UniformData = IsOrReturns<UniformSource>;
+export type UniformData = number | Float32List | TexImageSource;
 
 /**
  * Interface for abstraction for sending uniforms to shaders.
@@ -47,12 +45,12 @@ export interface Uniform<Data extends UniformData> {
   /**
    * Set the data that it sends to the shader.
    */
-  set: (data: Data) => Uniform<Data>;
+  set: (dataOrCb: IsOrReturns<Data>) => Uniform<Data>;
 
   /**
-   * Get the current data for this uniform.
+   *  the current data for this uniform.
    */
-  get: () => Data;
+  data: () => Data;
 }
 
 type BytesUniformType =
@@ -62,17 +60,19 @@ class UniformBase<Data> {
   constructor(
     protected readonly type: UniformType,
     public readonly name: string,
-    protected data?: Data,
+    protected dataOrCb?: IsOrReturns<Data>,
   ) {}
 
-  set(data: Data) {
-    this.data = data;
+  set(dataOrCb: Data) {
+    this.dataOrCb = dataOrCb;
     return this;
   }
 
-  get() {
-    if (typeof this.data === 'function') return this.data();
-    return this.data;
+  data() {
+    if (typeof this.dataOrCb === 'function') {
+      return (this.dataOrCb as () => Data)();
+    }
+    return this.dataOrCb;
   }
 
   static checkType<Data>(u: UniformBase<Data>, wantType: UniformType) {
@@ -85,14 +85,14 @@ class UniformBase<Data> {
 
 class BytesUniform extends UniformBase<number> implements Uniform<number> {
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (isNaN(this.get())) {
+    if (isNaN(this.data())) {
       throw TypeError(`Data for ${this.type} uniform should be a number`);
     }
-    sendBytesUniform(gl, program, this.name, this.type, this.get());
+    sendBytesUniform(gl, program, this.name, this.type, this.data());
   }
 }
 
-type UniformBuilder = (name: string, data?: UniformData) => Uniform<UniformData>;
+type UniformBuilder = (name: string, data?: IsOrReturns<UniformData>) => Uniform<UniformData>;
 
 /**
  * Create a builder function for each type of numeric uniform.
@@ -117,7 +117,7 @@ export const IntegerUniform = bytesUniform(UniformType.INTEGER);
 
 type SequenceUniformType = UniformType.VECTOR | UniformType.MATRIX;
 
-type SequenceUniformData = IsOrReturns<Float32List>;
+type SequenceUniformData = Float32List;
 
 class SequenceUniform extends UniformBase<SequenceUniformData>
   implements Uniform<SequenceUniformData> {
@@ -125,19 +125,19 @@ class SequenceUniform extends UniformBase<SequenceUniformData>
     type: SequenceUniformType,
     name: string,
     public readonly dimension: number,
-    data?: Float32List,
+    dataOrCb?: Float32List,
   ) {
-    super(type, name, data);
+    super(type, name, dataOrCb);
   }
 
   private validateData() {
     if (this.type == UniformType.VECTOR) {
-      if (this.get().length != this.dimension) {
+      if (this.data().length != this.dimension) {
         throw new TypeError(
           `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
     } else {
-      if (this.get().length != this.dimension ** 2) {
+      if (this.data().length != this.dimension ** 2) {
         throw new TypeError(
           `Dimension mismatch for a ${this.type}${this.dimension} uniform`);
       }
@@ -147,14 +147,14 @@ class SequenceUniform extends UniformBase<SequenceUniformData>
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     this.validateData();
     if (this.type === UniformType.VECTOR) {
-      sendVectorUniform(gl, program, this.name, this.dimension, this.get());
+      sendVectorUniform(gl, program, this.name, this.dimension, this.data());
     } else {
-      sendMatrixUniform(gl, program, this.name, this.dimension, this.get());
+      sendMatrixUniform(gl, program, this.name, this.dimension, this.data());
     }
   }
 
-  set(data: SequenceUniformData) {
-    this.data = data;
+  set(dataOrCb: IsOrReturns<SequenceUniformData>) {
+    this.dataOrCb = dataOrCb;
     this.validateData();
     return this;
   }
@@ -232,7 +232,7 @@ export const Translate = (x: number, y: number, z: number) =>
   (u: SequenceUniform): SequenceUniform => {
     UniformBase.checkType(u, UniformType.MATRIX);
     SequenceUniform.checkDimension(u, 4);
-    return u.set(translate(u.get() as Matrix4, x, y, z));
+    return u.set(translate(u.data() as Matrix4, x, y, z));
   };
 
 /**
@@ -241,7 +241,7 @@ export const Translate = (x: number, y: number, z: number) =>
  */
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
   UniformBase.checkType(u, UniformType.MATRIX);
-  return u.set(scale(u.get() as Matrix4, ...args));
+  return u.set(scale(u.data() as Matrix4, ...args));
 };
 
 /**
@@ -254,7 +254,7 @@ export const Rotate = (theta: number, ...axis: Vector3) =>
   (u: SequenceUniform) => {
     UniformBase.checkType(u, UniformType.MATRIX);
     SequenceUniform.checkDimension(u, 4);
-    return u.set(rotate(u.get() as Matrix4, theta, ...axis));
+    return u.set(rotate(u.data() as Matrix4, theta, ...axis));
   };
 
 interface ModelMatOptions {
@@ -293,7 +293,7 @@ export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
   SequenceUniform.checkDimension(modelMat, 4);
   return sequenceUniform(UniformType.MATRIX, 4)(
     name,
-    () => transpose(inverse(modelMat.get() as Matrix4)),
+    () => transpose(inverse(modelMat.data() as Matrix4)),
   ) as SequenceUniform;
 };
 
@@ -316,17 +316,15 @@ export const PerspectiveMatUniform =
 
 class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
-  private address: number;
+  private offset: number;
   private texture: WebGLTexture;
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (this.texture) {
-      send2DTexture(gl, program, this.address, this.texture);
-    } else {
-      this.address = newTextureAddress(program);
-      this.texture = texture2d(gl, this.get());
-      send2DTexture(gl, program, this.address, this.texture);
+    if (!this.texture) {
+      this.offset = newTextureOffset(program);
+      this.texture = texture2d(gl, this.data());
     }
+    send2DTexture(gl, program, this.offset, this.texture);
   }
 }
 
