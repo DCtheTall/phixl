@@ -48,7 +48,7 @@ export interface Uniform<Data extends UniformData> {
   set: (dataOrCb: IsOrReturns<Data>) => Uniform<Data>;
 
   /**
-   *  the current data for this uniform.
+   * Returns the current data for this uniform.
    */
   data: () => Data;
 }

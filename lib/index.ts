@@ -41,26 +41,27 @@ export const Shader = (nVertices: number,
                        fragmentSrc: string,
                        init: ShaderOptions = defaultOpts): RenderFunc =>
   (target: RenderTarget) => {
-    if (target instanceof HTMLCanvasElement) {
-      const gl = context(target);
-
-      const p = program(gl, vertexSrc, fragmentSrc);
-      gl.useProgram(p);
-
-      if (init.indices) sendIndices(gl, init.indices);
-      for (const attr of init.attributes) {
-        attr(gl, p);
-      }
-      for (const uniform of init.uniforms) {
-        uniform.send(gl, p);
-      }
-
-      render(
-        gl, null, null, nVertices,
-        init.viewport || [0, 0, target.width, target.height],
-        init.mode || defaultOpts.mode,
-        !!init.indices);
-      return;
+    if (!(target instanceof HTMLCanvasElement)) {
+      throw new Error('Not implemented');
     }
-    throw new Error('Not implemented');
+
+    const gl = context(target);
+
+    const p = program(gl, vertexSrc, fragmentSrc);
+    gl.useProgram(p);
+
+    if (init.indices) sendIndices(gl, init.indices);
+    for (const attr of init.attributes) {
+      attr(gl, p);
+    }
+    for (const uniform of init.uniforms) {
+      uniform.send(gl, p);
+    }
+
+    render(
+      gl, null, null, nVertices,
+      init.viewport || [0, 0, target.width, target.height],
+      init.mode || defaultOpts.mode,
+      !!init.indices);
+    return;    
   };
