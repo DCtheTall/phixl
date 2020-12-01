@@ -221,13 +221,19 @@ export const newTextureOffset = (program: WebGLProgram): number => {
   return offset;
 };
 
+const isVideo = (data: TexImageSource): data is HTMLVideoElement =>
+  data instanceof HTMLVideoElement;
+
+/**
+ * Create a 2D texture with the provided data.
+ */
 export const texture2d = (gl: WebGLRenderingContext,
                           data: TexImageSource): WebGLTexture => {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texImage2D(
     gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
-  if (isPowerOfTwo(data.width) && isPowerOfTwo(data.height)) {
+  if (!isVideo(data) && isPowerOfTwo(data.width) && isPowerOfTwo(data.height)) {
     gl.generateMipmap(gl.TEXTURE_2D);
   } else {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

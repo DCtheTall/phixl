@@ -15,12 +15,13 @@ const {
   ViewMatUniform,
 } = require('../../../dist');
 
+const video = document.getElementById('texture');
+
 function main() {
   const vertexShader = require('./vertex.glsl').default;
   const fragmentShader = require('./fragment.glsl').default;
 
   const canvas = document.getElementById('canvas');
-  const img = document.getElementById('texture');
 
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {
@@ -29,7 +30,7 @@ function main() {
   });
   
   // Create the rotation applied to the model matrix after every cube.
-  const rotate = Rotate(Math.PI / 256, 1, 1, 0);
+  const rotate = Rotate(Math.PI / 512, 1, 1, 0);
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
@@ -49,7 +50,7 @@ function main() {
         /* near */ 1, /* far */ 1e6),
       // Normal matrix is automatically updated when model matrix is updated.
       NormalMatUniform('u_NormalMat', modelMat),
-      Texture2DUniform('u_Texture', img),
+      Texture2DUniform('u_Texture', video),
     ],
   });
 
@@ -68,4 +69,5 @@ function main() {
   animate();
 }
 
-document.body.onload = main;
+video.play();
+video.oncanplaythrough = main;

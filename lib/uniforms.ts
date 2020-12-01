@@ -322,6 +322,8 @@ class Texture2DUniformImpl extends UniformBase<TexImageSource>
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (!this.texture) {
       this.offset = newTextureOffset(program);
+    }
+    if (!this.texture || this.data() instanceof HTMLVideoElement) {
       this.texture = texture2d(gl, this.data());
     }
     send2DTexture(gl, program, this.offset, this.texture);
