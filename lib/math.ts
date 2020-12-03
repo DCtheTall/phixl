@@ -117,24 +117,19 @@ export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
 
 type Quaternion = [number, number, number, number];
 
-const quatToRotationMat4 = (q: Quaternion): Matrix4 => [
+const quatToRotationMat = (q: Quaternion): Matrix3 => [
   // first column
   1 - (2 * ((q[2] ** 2) + (q[3] ** 2))),
   2 * ((q[1] * q[2]) + (q[3] * q[0])),
   2 * ((q[1] * q[3]) - (q[2] * q[0])),
-  0,
   // second column
   2 * ((q[1] * q[2]) - (q[3] * q[0])),
   1 - (2 * ((q[1] ** 2) + (q[3] ** 2))),
   2 * ((q[2] * q[3]) + (q[1] * q[0])),
-  0,
   // third column
   2 * ((q[1] * q[3]) + (q[2] * q[0])),
   2 * ((q[2] * q[3]) - (q[1] * q[0])),
   1 - (2 * ((q[1] ** 2) + (q[2] ** 2))),
-  0,
-  // fourth column
-  0, 0, 0, 1,
 ];
 
 const normalize = <V extends Vector>(v: V): V => {
@@ -145,14 +140,25 @@ const normalize = <V extends Vector>(v: V): V => {
   return v.map(x => x / len) as V;
 };
 
+const rotate2 = (M: Matrix2, theta: number): Matrix2 => {
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+  return multiply([c, s, c, -s], M);
+};
+
 /**
  * Apply a 3D rotation of theta radians around the given axis
  * to a 4D matrix.
- * 
- * TODO other dimensions
  */
 export const rotate =
-  (M: Matrix4, theta: number, ...axis: Vector3): Matrix4 => {
+  <M extends Matrix>(A: M, theta: number, ...axis: Vector3): M => {
+    const d = dimension(A);
+    if (d === 2) return rotate2(A as Matrix2, theta) as M;
+    if (axis.length < 3) {
+      throw new Error(
+        `Expected 3 arguments for the axis of rotation, got: ${axis.length}`);
+    }
+    axis = axis.slice(0, 3) as Vector3;
     axis = normalize(axis);
     const s = Math.sin(theta / 2);
     const q: Quaternion = [
@@ -161,7 +167,15 @@ export const rotate =
       axis[1] * s,
       axis[2] * s,
     ];
-    return multiply(quatToRotationMat4(q), M) as Matrix4;
+    const R = quatToRotationMat(q);
+    if (d === 3) return multiply(R, A as Matrix3) as M;
+    const R4: Matrix4 = [
+      R[0], R[1], R[2], 0,
+      R[3], R[4], R[5], 0,
+      R[6], R[7], R[8], 0,
+      0, 0, 0, 1,
+    ];
+    return multiply(R4, A as Matrix4) as M;
   };
 
 const subtract = <V extends Vector>(a: V, b: V): V =>

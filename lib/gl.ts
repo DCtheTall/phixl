@@ -245,8 +245,6 @@ export const texture2d = (gl: WebGLRenderingContext,
 
 /**
  * Send a 2D texture as a uniform to a shader.
- * 
- * TODO support animations.
  */
 export const send2DTexture = (gl: WebGLRenderingContext,
                               program: WebGLProgram,

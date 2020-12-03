@@ -247,14 +247,11 @@ export const Scale = (...args: number[]) => (u: SequenceUniform) => {
 /**
  * Create a transform on a Mat4Uniform that applies a
  * 3D rotation of theta radians around the given axis.
- *
- * TODO handle other dimensions.
  */
 export const Rotate = (theta: number, ...axis: Vector3) =>
   (u: SequenceUniform) => {
     UniformBase.checkType(u, UniformType.MATRIX);
-    SequenceUniform.checkDimension(u, 4);
-    return u.set(rotate(u.data() as Matrix4, theta, ...axis));
+    return u.set(rotate(u.data() as Matrix, theta, ...axis));
   };
 
 interface ModelMatOptions {
