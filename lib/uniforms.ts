@@ -314,7 +314,7 @@ export const PerspectiveMatUniform =
      sequenceUniform(UniformType.MATRIX, 4)(
        name, perspective(fovy, aspect, near, far));
 
-class Texture2DUniformImpl extends UniformBase<TexImageSource>
+export class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
   private offset: number;
   private texture: WebGLTexture;
