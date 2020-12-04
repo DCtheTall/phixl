@@ -3,7 +3,8 @@
  */
 
 import {Attribute} from './attributes';
-import {Viewport, context, glRender, program, sendIndices} from './gl';
+import {ShaderContext, shaderContext} from './context';
+import {Viewport, glContext, glRender, program, sendIndices} from './gl';
 import {Texture2DUniformImpl, Uniform, UniformData, isTextureUniform} from './uniforms';
 
 type RenderTarget = HTMLCanvasElement | Texture2DUniformImpl;
@@ -50,15 +51,16 @@ type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 const pendingTextureRenders =
   new WeakMap<Texture2DUniformImpl, TextureRenderFunc>();
 
-const renderShader = (canvas: HTMLCanvasElement,
+const renderShader = (ctx: ShaderContext,
+                      canvas: HTMLCanvasElement,
                       nVertices: number,
                       vertexSrc: string,
                       fragmentSrc: string,
                       fBuffer: WebGLFramebuffer | null,
                       rBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
-  const gl = context(canvas);
-  const p = program(gl, vertexSrc, fragmentSrc);
+  const gl = glContext(canvas);
+  const p = program(ctx, gl, vertexSrc, fragmentSrc);
 
   // Render any textures that this shader depends on.
   for (const uniform of opts.uniforms) {
@@ -80,17 +82,18 @@ const renderShader = (canvas: HTMLCanvasElement,
     /* drawElements= */ !!opts.indices);
 };
 
-const createTextureRenderFunc = (nVertices: number,
+const createTextureRenderFunc = (ctx: ShaderContext,
+                                 nVertices: number,
                                  vertexSrc: string,
                                  fragmentSrc: string,
                                  target: Texture2DUniformImpl,
                                  opts: ShaderOptions): TextureRenderFunc =>
   (canvas: HTMLCanvasElement) => {
-    const gl = context(canvas);
+    const gl = glContext(canvas);
     const viewport = opts.viewport || defaultViewport(canvas);
     const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
     renderShader(
-      canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer, renderBuffer,
+      ctx, canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer, renderBuffer,
       opts);
   };
 
@@ -100,15 +103,17 @@ const createTextureRenderFunc = (nVertices: number,
 export const Shader = (nVertices: number,
                        vertexSrc: string,
                        fragmentSrc: string,
-                       opts: ShaderOptions = defaultOpts): ShaderFunc =>
-  (target: RenderTarget) => {
+                       opts: ShaderOptions = defaultOpts): ShaderFunc => {
+  const ctx = shaderContext();
+  return (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       renderShader(
-        target, nVertices, vertexSrc, fragmentSrc, null, null, opts);
+        ctx, target, nVertices, vertexSrc, fragmentSrc, null, null, opts);
       return;
     }
     pendingTextureRenders.set(
       target,
       createTextureRenderFunc(
-        nVertices, vertexSrc, fragmentSrc, target, opts));
+        ctx, nVertices, vertexSrc, fragmentSrc, target, opts));
   };
+};

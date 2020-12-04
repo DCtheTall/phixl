@@ -2,6 +2,7 @@
  * @fileoverview Module for GL context related operations.
  */
 
+import {ShaderContext} from './context';
 import {isPowerOfTwo} from './math';
 
 const contextCache =
@@ -11,7 +12,7 @@ const contextCache =
  * Get the current WebGL context.
  * If this is the first time you 
  */
-export const context = (canvas: HTMLCanvasElement): WebGLRenderingContext => {
+export const glContext = (canvas: HTMLCanvasElement): WebGLRenderingContext => {
   const existing = contextCache.get(canvas);
   if (existing) return existing;
 
@@ -41,18 +42,20 @@ const compileShader = (gl: WebGLRenderingContext,
   return shader;
 };
 
-type ShaderSrcMap = Map<string, Map<string, WebGLProgram>>;
+type ShaderMap = Map<string, Map<string, WebGLProgram>>;
 
 const programCache =
-  new WeakMap<WebGLRenderingContext, ShaderSrcMap>();
+  new WeakMap<ShaderContext, WeakMap<WebGLRenderingContext, ShaderMap>>();
 
 /**
  * Create and compile a shader program. 
  */
-export const program = (gl: WebGLRenderingContext,
+export const program = (ctx: ShaderContext,
+                        gl: WebGLRenderingContext,
                         vertexSrc: string,
                         fragmentSrc: string): WebGLProgram => {
-  const existing = programCache.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
+  const existing =
+    programCache.get(ctx)?.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
   if (existing) return existing;
 
   const vertexShader = compileShader(
@@ -68,8 +71,10 @@ export const program = (gl: WebGLRenderingContext,
       `Shader failed to compile: ${gl.getProgramInfoLog(program)}`);
   }
 
-  if (!programCache.get(gl)) programCache.set(gl, new Map());
-  const ctxProgramCache = programCache.get(gl);
+  if (!programCache.get(ctx)) programCache.set(ctx, new WeakMap());
+  const shaderProgramCahce = programCache.get(ctx);
+  if (!shaderProgramCahce.get(gl)) shaderProgramCahce.set(gl, new Map());
+  const ctxProgramCache = shaderProgramCahce.get(gl);
   if (!ctxProgramCache.get(vertexSrc)) {
     ctxProgramCache.set(vertexSrc, new Map());
   }

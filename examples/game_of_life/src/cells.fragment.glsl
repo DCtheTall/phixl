@@ -3,7 +3,7 @@ precision highp float;
 varying vec2 v_TexCoord;
 
 uniform vec2 u_Resolution;
-uniform sampler2D u_PreviousCells;
+uniform sampler2D u_CurrentCells;
 
 const vec3 kBlack = vec3(0.0);
 const vec3 kWhite = vec3(1.0);
@@ -17,7 +17,7 @@ vec2 neighborCoords(int i, int j) {
 }
 
 bool isAlive(vec2 coord) {
-  vec3 color = texture2D(u_PreviousCells, coord).xyz;
+  vec3 color = texture2D(u_CurrentCells, coord).xyz;
   return length(color) > 0.0;
 }
 
@@ -46,7 +46,7 @@ vec3 getNextColor(bool alive) {
   if (!alive) {
     return kBlack;
   }
-  vec3 cur = texture2D(u_PreviousCells, v_TexCoord).xyz;
+  vec3 cur = texture2D(u_CurrentCells, v_TexCoord).xyz;
   if (cur == kBlack) {
     return kWhite;
   }

@@ -28,18 +28,6 @@ const noisyCanvas = () => {
   return canvas;
 };
 
-/**
- * Clone a canvas to a new one.
- */
-const cloneCanvas = (canvas) => {
-  const result = document.createElement('canvas');
-  result.width = canvas.width;
-  result.height = canvas.height;
-  ctx = result.getContext('2d');
-  ctx.drawImage(canvas, 0, 0);
-  return result;
-};
-
 const main = () => {
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
@@ -47,43 +35,57 @@ const main = () => {
 
   // Load each shader source as a JS string.
   const vertShaderSrc = require('./vertex.glsl').default;
+  const cellFragShaderSrc = require('./cells.fragment.glsl').default;
   const canvasFragShaderSrc = require('./canvas.fragment.glsl').default;
-  const cellsFragShaderSrc = require('./cells.fragment.glsl').default;
 
+  // Every shader uses the same attributes.
   const attributes = [
     Vec2Attribute('a_Position', PLANE_VERTICES),
     Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),
   ];
-  const prevCells = Texture2DUniform('u_PreviousCells', noisyCanvas());
-  const curCells = Texture2DUniform('u_CurrentCells');
+  const resolutionUniform = Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]);
 
-  // Shader which computes the next generation for Game of Life.
-  const cellsShader = Shader(
-    PLANE_N_VERTICES, vertShaderSrc, cellsFragShaderSrc, {
+  const cellsA = Texture2DUniform('u_CurrentCells', noisyCanvas());
+  const cellsB = Texture2DUniform('u_CurrentCells');
+
+  // These shaders compute the next generation in the Game of Life.
+  // They render the result to a texture uniform using a framebuffer.
+  // cellsAtoB uses the texture in cellsA to render a texture to cellsB.
+  // cellsBtoA reverses the source and destination textures.
+  const cellsShader = (textureUniform) =>
+    Shader(PLANE_N_VERTICES, vertShaderSrc, cellFragShaderSrc, {
       attributes,
       uniforms: [
-        Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]),
-        prevCells,
+        resolutionUniform,
+        textureUniform,
       ],
     });
+  const cellsAtoB = cellsShader(cellsA);
+  const cellsBtoA = cellsShader(cellsB);
 
-  // Shader which renders the current game board to a canvas.
-  const canvasShader = Shader(
-    PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc,
-    {attributes, uniforms: [curCells]});
+  // These shaders paint one of the texture uniforms to the canvas.
+  // We use separate shaders for this depending on whether cellsA or cellsB
+  // contains the most recently updated board.
+  const canvasShader = (textureUniform) =>
+    Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
+      attributes,
+      uniforms: [textureUniform],
+    });
+  const canvasShaderA = canvasShader(cellsA);
+  const canvasShaderB = canvasShader(cellsB);
 
+  let i = 0;
   const animate = () => {
-    // Render the current game board to a frame.
-    cellsShader(curCells);
+    i++;
+    if (i % 2) {
+      cellsAtoB(cellsB);
+      canvasShaderB(canvas);
+    } else {
+      cellsBtoA(cellsA);
+      canvasShaderA(canvas);
+    }
 
-    // Render the current cells to a canvas.
-    canvasShader(canvas);
-
-    // Update the texture in the shader for computing the next generation
-    // by cloning the canvas in the DOM to the previous board texture.
-    prevCells.set(cloneCanvas(canvas));
-
-    // Recursively call animate on next paint.
+    // // Recursively call animate on next paint.
     window.requestAnimationFrame(animate);
   };
   animate();

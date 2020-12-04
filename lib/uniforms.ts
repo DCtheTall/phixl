@@ -327,16 +327,8 @@ interface TextureBuffers {
 export class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
   private offset: number;
-  protected texture: WebGLTexture;
+  public texture: WebGLTexture;
   private buffersCache: TextureBuffers;
-
-  static texture(instance: Texture2DUniformImpl): WebGLTexture {
-    return instance.texture;
-  }
-
-  static setTexture(instance: Texture2DUniformImpl, texture: WebGLTexture) {
-    instance.texture = texture;
-  }
 
   private shouldBuildTexture() {
     return !this.texture || this.data() instanceof HTMLVideoElement;
