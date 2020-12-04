@@ -302,11 +302,11 @@ export type Viewport = [number, number, number, number];
 /**
  * Draws primitives to the bound buffers.
  */
-export const render = (gl: WebGLRenderingContext,
-                       nVertices: number,
-                       viewport: Viewport,
-                       mode: number,
-                       drawElements: boolean) => {
+export const glRender = (gl: WebGLRenderingContext,
+                         nVertices: number,
+                         viewport: Viewport,
+                         mode: number,
+                         drawElements: boolean) => {
   // TODO handle render ing to a frame buffer.
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

@@ -12,6 +12,9 @@ const CANVAS_SIZE = 600;
 const BLACK = '#000';
 const WHITE = '#fff';
 
+/**
+ * Draw a canvas with white or black pixels randomly to start.
+ */
 const noisyCanvas = () => {
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_SIZE;
@@ -25,6 +28,9 @@ const noisyCanvas = () => {
   return canvas;
 };
 
+/**
+ * Clone a canvas to a new one.
+ */
 const cloneCanvas = (canvas) => {
   const result = document.createElement('canvas');
   result.width = canvas.width;
@@ -39,6 +45,7 @@ const main = () => {
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
+  // Load each shader source as a JS string.
   const vertShaderSrc = require('./vertex.glsl').default;
   const canvasFragShaderSrc = require('./canvas.fragment.glsl').default;
   const cellsFragShaderSrc = require('./cells.fragment.glsl').default;
@@ -47,10 +54,10 @@ const main = () => {
     Vec2Attribute('a_Position', PLANE_VERTICES),
     Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),
   ];
-
   const prevCells = Texture2DUniform('u_PreviousCells', noisyCanvas());
   const curCells = Texture2DUniform('u_CurrentCells');
 
+  // Shader which computes the next generation for Game of Life.
   const cellsShader = Shader(
     PLANE_N_VERTICES, vertShaderSrc, cellsFragShaderSrc, {
       attributes,
@@ -60,14 +67,23 @@ const main = () => {
       ],
     });
 
+  // Shader which renders the current game board to a canvas.
   const canvasShader = Shader(
     PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc,
     {attributes, uniforms: [curCells]});
 
   const animate = () => {
+    // Render the current game board to a frame.
     cellsShader(curCells);
+
+    // Render the current cells to a canvas.
     canvasShader(canvas);
+
+    // Update the texture in the shader for computing the next generation
+    // by cloning the canvas in the DOM to the previous board texture.
     prevCells.set(cloneCanvas(canvas));
+
+    // Recursively call animate on next paint.
     window.requestAnimationFrame(animate);
   };
   animate();

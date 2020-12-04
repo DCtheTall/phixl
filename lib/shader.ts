@@ -3,7 +3,7 @@
  */
 
 import {Attribute} from './attributes';
-import {Viewport, context, program, render, sendIndices} from './gl';
+import {Viewport, context, glRender, program, sendIndices} from './gl';
 import {Texture2DUniformImpl, Uniform, UniformData, isTextureUniform} from './uniforms';
 
 type RenderTarget = HTMLCanvasElement | Texture2DUniformImpl;
@@ -45,39 +45,54 @@ const sendDataToShader = (gl: WebGLRenderingContext,
   }
 };
 
-type TextureRenderFunc =
-  (gl: WebGLRenderingContext, canvas: HTMLCanvasElement) => void;
+type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 
 const pendingTextureRenders =
   new WeakMap<Texture2DUniformImpl, TextureRenderFunc>();
 
-const renderToCanvas = (canvas: HTMLCanvasElement,
-                        nVertices: number,
-                        vertexSrc: string,
-                        fragmentSrc: string,
-                        opts: ShaderOptions = defaultOpts) => {
+const renderShader = (canvas: HTMLCanvasElement,
+                      nVertices: number,
+                      vertexSrc: string,
+                      fragmentSrc: string,
+                      fBuffer: WebGLFramebuffer | null,
+                      rBuffer: WebGLRenderbuffer | null,
+                      opts: ShaderOptions) => {
   const gl = context(canvas);
-  const viewport = opts.viewport || defaultViewport(canvas);
+  const p = program(gl, vertexSrc, fragmentSrc);
 
+  // Render any textures that this shader depends on.
   for (const uniform of opts.uniforms) {
     if (!isTextureUniform(uniform)) continue;
     const renderTexture = pendingTextureRenders.get(uniform);
     if (!renderTexture) continue;
-    renderTexture(gl, canvas);
+    renderTexture(canvas);
+    pendingTextureRenders.delete(uniform);
   }
 
-  const p = program(gl, vertexSrc, fragmentSrc);
-
   gl.useProgram(p);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, rBuffer);
 
   sendDataToShader(gl, p, opts);
-  render(
-    gl, nVertices, viewport, opts.mode || defaultOpts.mode,
+  glRender(
+    gl, nVertices, opts.viewport || defaultViewport(canvas),
+    opts.mode || defaultOpts.mode,
     /* drawElements= */ !!opts.indices);
-  return;
 };
+
+const createTextureRenderFunc = (nVertices: number,
+                                 vertexSrc: string,
+                                 fragmentSrc: string,
+                                 target: Texture2DUniformImpl,
+                                 opts: ShaderOptions): TextureRenderFunc =>
+  (canvas: HTMLCanvasElement) => {
+    const gl = context(canvas);
+    const viewport = opts.viewport || defaultViewport(canvas);
+    const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
+    renderShader(
+      canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer, renderBuffer,
+      opts);
+  };
 
 /**
  * Create a shader function to render to a target.
@@ -88,22 +103,12 @@ export const Shader = (nVertices: number,
                        opts: ShaderOptions = defaultOpts): ShaderFunc =>
   (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
-      renderToCanvas(target, nVertices, vertexSrc, fragmentSrc, opts);
+      renderShader(
+        target, nVertices, vertexSrc, fragmentSrc, null, null, opts);
       return;
     }
     pendingTextureRenders.set(
-      target, (gl: WebGLRenderingContext, canvas: HTMLCanvasElement) => {
-        const viewport = opts.viewport || defaultViewport(canvas);
-        const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
-        const p = program(gl, vertexSrc, fragmentSrc);
-
-        gl.useProgram(p);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
-
-        sendDataToShader(gl, p, opts);
-        render(
-          gl, nVertices, viewport,
-          opts.mode || defaultOpts.mode, /* drawElements= */ !!opts.indices);
-      });
+      target,
+      createTextureRenderFunc(
+        nVertices, vertexSrc, fragmentSrc, target, opts));
   };
