@@ -2,7 +2,6 @@
  * @fileoverview Module for GL context related operations.
  */
 
-import {ShaderContext} from './context';
 import {isPowerOfTwo} from './math';
 
 const contextCache =
@@ -45,17 +44,16 @@ const compileShader = (gl: WebGLRenderingContext,
 type ShaderMap = Map<string, Map<string, WebGLProgram>>;
 
 const programCache =
-  new WeakMap<ShaderContext, WeakMap<WebGLRenderingContext, ShaderMap>>();
+  new WeakMap<WebGLRenderingContext, ShaderMap>();
 
 /**
  * Create and compile a shader program. 
  */
-export const program = (ctx: ShaderContext,
-                        gl: WebGLRenderingContext,
+export const program = (gl: WebGLRenderingContext,
                         vertexSrc: string,
                         fragmentSrc: string): WebGLProgram => {
   const existing =
-    programCache.get(ctx)?.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
+    programCache.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
   if (existing) return existing;
 
   const vertexShader = compileShader(
@@ -71,10 +69,8 @@ export const program = (ctx: ShaderContext,
       `Shader failed to compile: ${gl.getProgramInfoLog(program)}`);
   }
 
-  if (!programCache.get(ctx)) programCache.set(ctx, new WeakMap());
-  const shaderProgramCahce = programCache.get(ctx);
-  if (!shaderProgramCahce.get(gl)) shaderProgramCahce.set(gl, new Map());
-  const ctxProgramCache = shaderProgramCahce.get(gl);
+  if (!programCache.get(gl)) programCache.set(gl, new Map());
+  const ctxProgramCache = programCache.get(gl);
   if (!ctxProgramCache.get(vertexSrc)) {
     ctxProgramCache.set(vertexSrc, new Map());
   }
