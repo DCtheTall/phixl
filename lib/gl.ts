@@ -257,16 +257,52 @@ export const send2DTexture = (gl: WebGLRenderingContext,
 };
 
 /**
+ * Creates a render buffer from a given frame buffer.
+ */
+export const renderBuffer = (gl: WebGLRenderingContext,
+                             fBuffer: WebGLFramebuffer,
+                             width: number,
+                             height: number): WebGLRenderbuffer => {
+  const rBuffer = gl.createRenderbuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, rBuffer);
+  gl.renderbufferStorage(
+    gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rBuffer);
+  return rBuffer;
+};
+
+/**
+ * Create a 2D texture from a frame buffer.
+ */
+export const texture2DFromFramebuffer = (gl: WebGLRenderingContext,
+                                         fBuffer: WebGLFramebuffer,
+                                         width: number,
+                                         height: number): WebGLTexture => {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  return texture;
+};
+
+/**
  * Abstract type for the bounds of a viewport.
  */
 export type Viewport = [number, number, number, number];
 
 /**
- * Render a scene onto the provided frame and render buffers.
+ * Draws primitives to the bound buffers.
  */
 export const render = (gl: WebGLRenderingContext,
-                       frameBuffer: WebGLFramebuffer | null,
-                       renderBuffer: WebGLRenderbuffer | null,
                        nVertices: number,
                        viewport: Viewport,
                        mode: number,
@@ -274,8 +310,6 @@ export const render = (gl: WebGLRenderingContext,
   // TODO handle render ing to a frame buffer.
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
   gl.viewport(...viewport);
   if (drawElements) {
     gl.drawElements(mode, nVertices, gl.UNSIGNED_SHORT, 0);

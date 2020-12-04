@@ -15,6 +15,8 @@ const {
   ViewMatUniform,
 } = require('../../../dist');
 
+const CANVAS_SIZE = 600;
+
 const video = document.getElementById('texture');
 
 function main() {
@@ -22,6 +24,8 @@ function main() {
   const fragmentShader = require('./fragment.glsl').default;
 
   const canvas = document.getElementById('canvas');
+  canvas.width = CANVAS_SIZE;
+  canvas.height = CANVAS_SIZE;
 
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {

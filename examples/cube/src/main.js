@@ -15,11 +15,15 @@ const {
   ViewMatUniform,
 } = require('../../../dist');
 
-function main() {
+const CANVAS_SIZE = 600;
+
+const main = () => {
   const vertexShader = require('./vertex.glsl').default;
   const fragmentShader = require('./fragment.glsl').default;
 
   const canvas = document.getElementById('canvas');
+  canvas.width = CANVAS_SIZE;
+  canvas.height = CANVAS_SIZE;
   const img = document.getElementById('texture');
 
   // Create the model matrix uniform object.
@@ -66,6 +70,6 @@ function main() {
   };
   
   animate();
-}
+};
 
 document.body.onload = main;

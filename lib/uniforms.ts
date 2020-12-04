@@ -4,12 +4,15 @@
 
 import {
   UniformType,
+  Viewport,
   newTextureOffset,
+  renderBuffer,
   send2DTexture,
   sendBytesUniform,
   sendMatrixUniform,
   sendVectorUniform,
   texture2d,
+  texture2DFromFramebuffer,
 } from './gl';
 import {
   Matrix,
@@ -311,21 +314,72 @@ export const PerspectiveMatUniform =
      sequenceUniform(UniformType.MATRIX, 4)(
        name, perspective(fovy, aspect, near, far));
 
+interface TextureBuffers {
+  frameBuffer: WebGLFramebuffer;
+  renderBuffer: WebGLFramebuffer;
+}
+
+/**
+ * Implementation of a texture 2D uniform.
+ * 
+ * TODO partition state by GL context?
+*/
 export class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
   private offset: number;
-  private texture: WebGLTexture;
+  protected texture: WebGLTexture;
+  private buffersCache: TextureBuffers;
+
+  static texture(instance: Texture2DUniformImpl): WebGLTexture {
+    return instance.texture;
+  }
+
+  static setTexture(instance: Texture2DUniformImpl, texture: WebGLTexture) {
+    instance.texture = texture;
+  }
+
+  private shouldBuildTexture() {
+    return !this.texture || this.data() instanceof HTMLVideoElement;
+  }
+
+  set(dataOrCb: IsOrReturns<TexImageSource>) {
+    this.dataOrCb = dataOrCb;
+    this.texture = undefined;
+    return this;
+  }
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (!this.texture) {
+    if (isNaN(this.offset)) {
       this.offset = newTextureOffset(program);
     }
-    if (!this.texture || this.data() instanceof HTMLVideoElement) {
+    if (this.shouldBuildTexture()) {
       this.texture = texture2d(gl, this.data());
     }
     send2DTexture(gl, program, this.offset, this.texture);
   }
+
+  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
+    if (this.buffersCache) return this.buffersCache;
+    const frameBuffer = gl.createFramebuffer();
+    const width = viewport[2] - viewport[0];
+    const height = viewport[3] - viewport[1];
+    this.buffersCache = {
+      frameBuffer,
+      renderBuffer: renderBuffer(gl, frameBuffer, width, height),
+    };
+    this.texture = texture2DFromFramebuffer(gl, frameBuffer, width, height);
+    return this.buffersCache;
+  }
 }
+
+/**
+ * Tests if a uniform is for a texture.
+ */
+export const isTextureUniform =
+  (u: Uniform<UniformData>): u is Texture2DUniformImpl =>
+    u instanceof Texture2DUniformImpl;
+
+// TODO cube textures
 
 /**
  * Sends a 2D texture uniform to a shader.
