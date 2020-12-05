@@ -1,7 +1,7 @@
 {
   "name": "phixl",
   "version": "1.0.0",
-  "description": "a functional WebGL library for composing shaders",
+  "description": "A functional WebGL library for rendering WebGL shaders",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo TODO",
@@ -18,7 +18,8 @@
     "JavaScript",
     "JS",
     "TypeScript",
-    "3D"
+    "3D",
+    "GPU"
   ],
   "author": "DCtheTall",
   "license": "Apache-2.0",
