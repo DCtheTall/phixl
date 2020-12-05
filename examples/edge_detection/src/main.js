@@ -19,6 +19,7 @@ const renderExample = (video) => {
   const vertShaderSrc = require('./vertex.glsl').default;
   const fragShaderSrc = require('./fragment.glsl').default;
 
+  // Create the shader for the edge detection algorithm.
   const shader =
     Shader(PLANE_N_VERTICES, vertShaderSrc, fragShaderSrc, {
       attributes: [

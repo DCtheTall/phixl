@@ -19,6 +19,13 @@ const mat3 kSobelKernelY = mat3(1.0, 2.0, 1.0,
                                 0.0, 0.0, 0.0,
                                 -1.0, -2.0, -1.0);
 
+const float kEdgeThreshold = 0.05;
+
+vec2 neighborCoords(int i, int j) {
+  vec2 ds = 1.0 / u_Resolution;
+  return vec2(float(i) * ds.x, float(j) * ds.y);
+}
+
 float convolution(mat3 A, mat3 B) {
   return dot(A[0], B[0]) + dot(A[1], B[1]) + dot(A[2], B[2]);
 }
@@ -32,7 +39,7 @@ float blurredIntensity(vec2 pos) {
   mat3 M = mat3(0.0);
   for (int i = -1; i < 2; i++) {
     for (int j = -1; j < 2; j++) {
-      vec2 coord = pos + vec2(float(i) * ds.x, float(j) * ds.y);
+      vec2 coord = pos + neighborCoords(i, j);
       M[i + 1][j + 1] = intensity(texture2D(u_Texture, coord).xyz);
     }
   }
@@ -44,7 +51,7 @@ vec2 gradient() {
   mat3 M = mat3(0.0);
   for (int i = -1; i < 2; i++) {
     for (int j = -1; j < 2; j++) {
-      vec2 coord = v_TexCoord + vec2(float(i) * ds.x, float(j) * ds.y);
+      vec2 coord = v_TexCoord + neighborCoords(i, j);
       M[i + 1][j + 1] = blurredIntensity(coord);
     }
   }
@@ -53,5 +60,8 @@ vec2 gradient() {
 
 void main() {
   vec2 g = gradient();
-  gl_FragColor = vec4(vec3(length(g)), 1.0);
+  if (length(g) < kEdgeThreshold) {
+    g = vec2(0.0);
+  }
+  gl_FragColor = vec4(vec3(1.0 - length(g)), 1.0);
 }

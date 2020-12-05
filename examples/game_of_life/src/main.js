@@ -74,10 +74,10 @@ const main = () => {
   const canvasShaderA = canvasShader(cellsA);
   const canvasShaderB = canvasShader(cellsB);
 
-  let i = 0;
+  let flag = false;
   const animate = () => {
-    i++;
-    if (i % 2) {
+    flag = !flag;
+    if (flag) {
       cellsAtoB(cellsB);
       canvasShaderB(canvas);
     } else {

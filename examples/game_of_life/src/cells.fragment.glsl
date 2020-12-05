@@ -42,7 +42,7 @@ bool shouldLive(bool wasAlive) {
   return (wasAlive && (neighbors == 2)) || (neighbors == 3);
 }
 
-vec3 getNextColor(bool alive) {
+vec3 nextColor(bool alive) {
   if (!alive) {
     return kBlack;
   }
@@ -61,5 +61,5 @@ vec3 getNextColor(bool alive) {
 
 void main() {
   bool alive = shouldLive(isAlive(v_TexCoord));
-  gl_FragColor = vec4(getNextColor(alive), 1.0);
+  gl_FragColor = vec4(nextColor(alive), 1.0);
 }
