@@ -21,7 +21,7 @@ export const PLANE_VERTICES =
   new Float32Array([-1, 1, 1, 1, -1, -1, 1, -1]);
 
 export const PLANE_TEX_COORDS =
-  new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]);
+  new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
 
 /**
  * Cube vertex coordinates.

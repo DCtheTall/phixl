@@ -308,7 +308,6 @@ export const glRender = (gl: WebGLRenderingContext,
                          viewport: Viewport,
                          mode: number,
                          drawElements: boolean) => {
-  // TODO handle render ing to a frame buffer.
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(...viewport);

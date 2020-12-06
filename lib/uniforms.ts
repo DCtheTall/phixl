@@ -321,8 +321,6 @@ interface TextureBuffers {
 
 /**
  * Implementation of a texture 2D uniform.
- * 
- * TODO partition state by GL context?
 */
 export class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {

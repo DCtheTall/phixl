@@ -43,7 +43,6 @@ const main = () => {
     Vec2Attribute('a_Position', PLANE_VERTICES),
     Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),
   ];
-  const resolutionUniform = Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]);
 
   const cellsA = Texture2DUniform('u_CurrentCells', noisyCanvas());
   const cellsB = Texture2DUniform('u_CurrentCells');
@@ -52,12 +51,12 @@ const main = () => {
   // They render the result to a texture uniform using a framebuffer.
   // cellsAtoB uses the texture in cellsA to render a texture to cellsB.
   // cellsBtoA reverses the source and destination textures.
-  const cellsShader = (textureUniform) =>
+  const cellsShader = (sourceTexture) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, cellFragShaderSrc, {
       attributes,
       uniforms: [
-        resolutionUniform,
-        textureUniform,
+        Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]),
+        sourceTexture,
       ],
     });
   const cellsAtoB = cellsShader(cellsA);

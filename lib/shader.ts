@@ -35,7 +35,7 @@ const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
 const sendDataToShader = (gl: WebGLRenderingContext,
                           p: WebGLProgram,
                           opts: ShaderOptions) => {
-  // TODO add caching for animations
+  // TODO add caching for sending data.
   if (opts.indices) sendIndices(gl, opts.indices);
   for (const attr of opts.attributes) {
     attr(gl, p);
@@ -61,6 +61,7 @@ const renderShader = (canvas: HTMLCanvasElement,
   const p = program(gl, vertexSrc, fragmentSrc);
 
   // Render any textures that this shader depends on.
+  // TODO investigate cycle detection.
   for (const uniform of opts.uniforms) {
     if (!isTextureUniform(uniform)) continue;
     const renderTexture = pendingTextureRenders.get(uniform);

@@ -13,7 +13,7 @@ const vec3 kDullGreen = vec3(0.4, 0.5, 0.0);
 
 vec2 neighborCoords(int i, int j) {
   vec2 ds = 1.0 / u_Resolution;
-  return vec2(float(i) * ds.x, float(j) * ds.y);
+  return vec2(float(i), float(j)) * ds;
 }
 
 bool isAlive(vec2 coord) {
