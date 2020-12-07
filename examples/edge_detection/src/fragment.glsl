@@ -34,13 +34,19 @@ float intensity(vec3 color) {
   return pow(length(color), 2.0) / 3.0;
 }
 
+vec3 sampleTexture(vec2 pos) {
+  vec2 coord = vec2(pos.x, 1.0 - pos.y);
+  vec3 color = texture2D(u_Texture, coord).xyz;
+  return color;
+}
+
 float blurredIntensity(vec2 pos) {
   vec2 ds = 1.0 / u_Resolution;
   mat3 M = mat3(0.0);
   for (int i = -1; i < 2; i++) {
     for (int j = -1; j < 2; j++) {
       vec2 coord = pos + neighborCoords(i, j);
-      M[i + 1][j + 1] = intensity(texture2D(u_Texture, coord).xyz);
+      M[i + 1][j + 1] = intensity(sampleTexture(coord));
     }
   }
   return convolution(M, kBlurKernel);
@@ -63,5 +69,5 @@ void main() {
   if (length(g) < kEdgeThreshold) {
     g = vec2(0.0);
   }
-  gl_FragColor = vec4(vec3(1.0 - length(g)), 1.0);
+  gl_FragColor = vec4(vec3(length(g)), 1.0);
 }
