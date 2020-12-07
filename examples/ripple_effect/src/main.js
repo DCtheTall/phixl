@@ -45,6 +45,8 @@ const main = () => {
   const heightMapA = Texture2DUniform('u_HeightMap', initialHeightMap());
   const heightMapB = Texture2DUniform('u_HeightMap', initialHeightMap());
 
+  // Add a mousedown listener to the canvas that changes the value
+  // of u_MouseDown in the shader.
   const mouseDown = BooleanUniform('u_MouseDown', false);
   canvas.addEventListener('mousedown', () => mouseDown.set(true));
   canvas.addEventListener('mouseup', () => mouseDown.set(false));
@@ -72,25 +74,24 @@ const main = () => {
   const waveShaderAtoB = waveShader(heightMapA);
   const waveShaderBtoA = waveShader(heightMapB);
 
-  const riverbed =
-    Texture2DUniform('u_Riverbed', document.getElementById('riverbed'));
-
   const canvasShader = (heightMap) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
       attributes,
       uniforms: [
         heightMap,
-        riverbed,
+        Texture2DUniform('u_Riverbed', document.getElementById('riverbed')),
         resolution,
       ],
     });
   const canvasShaderA = canvasShader(heightMapA);
   const canvasShaderB = canvasShader(heightMapB);
 
+  // Render loop.
+  // We alternate which frame buffers to use as the source and destination
+  // for rendering the height map so that all computation is done on the
+  // GPU and we don't need expensive canvas copying in JS.
   let flag = false;
-  let i = 0;
   const animate = () => {
-    i++;
     flag = !flag;
     if (flag) {
       waveShaderAtoB(heightMapB);
@@ -99,11 +100,7 @@ const main = () => {
       waveShaderBtoA(heightMapA);
       canvasShaderA(canvas);
     }
-    if (i === 3) {
-      console.log('done');
-      return;
-    }
-    setTimeout(animate, 500);
+    window.requestAnimationFrame(animate);
   };
   animate();
 };

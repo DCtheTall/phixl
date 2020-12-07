@@ -3,6 +3,8 @@ body {
   align-items: center;
   display: flex;
   flex-direction: column;
+  font-family: Roboto, sans-serif;
+  font-size: 18px;
   justify-content: center;
 }
 

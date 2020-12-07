@@ -21,7 +21,7 @@ const mat3 kBlurKernel = mat3(
   0.0625, 0.125, 0.0625);
 
 const float kRestHeight = 0.5;
-const float kDampFactor = 0.1;
+const float kDampFactor = 0.01;
 
 const float kDisplacementRadius = 0.01;
 
