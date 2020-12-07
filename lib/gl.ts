@@ -207,19 +207,28 @@ export const sendVectorUniform = (gl: WebGLRenderingContext,
   }
 };
 
-const nextTextureAddress = new WeakMap<WebGLProgram, number>();
+const textureAddresses = new WeakMap<WebGLProgram, string[]>();
 
 /**
- * Get the next available address to 
+ * Get the next available address for textures.
  */
-export const newTextureOffset = (program: WebGLProgram): number => {
-  const offset = nextTextureAddress.get(program) || 0;
-  if (offset === 32) {
+export const newTextureOffset = (program: WebGLProgram,
+                                 name: string): number => {
+  const existing = textureAddresses.get(program) || [];
+
+  for (let i = 0; i < existing.length; i++) {
+    if (existing[i] === name) return i;
+  }
+  
+  const curOffset = existing.length;
+  if (curOffset === 32) {
     throw new Error('Already at maximum number of textures for this program');
   }
-  // Set the next available address in the map.
-  nextTextureAddress.set(program, offset + 1);
-  return offset;
+
+  existing.push(name);
+  if (!curOffset) textureAddresses.set(program, existing);
+
+  return curOffset;
 };
 
 const isVideo = (data: TexImageSource): data is HTMLVideoElement =>
@@ -232,8 +241,7 @@ export const texture2d = (gl: WebGLRenderingContext,
                           data: TexImageSource): WebGLTexture => {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(
-    gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
   if (!isVideo(data) && isPowerOfTwo(data.width) && isPowerOfTwo(data.height)) {
     gl.generateMipmap(gl.TEXTURE_2D);
   } else {
@@ -249,6 +257,7 @@ export const texture2d = (gl: WebGLRenderingContext,
  */
 export const send2DTexture = (gl: WebGLRenderingContext,
                               program: WebGLProgram,
+                              name: string,
                               offset: number,
                               texture: WebGLTexture) => {
   const loc = gl.getUniformLocation(program, name);

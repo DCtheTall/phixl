@@ -64,10 +64,11 @@ const renderShader = (canvas: HTMLCanvasElement,
   // TODO investigate cycle detection.
   for (const uniform of opts.uniforms) {
     if (!isTextureUniform(uniform)) continue;
+    uniform.prepare(gl, program);
     const renderTexture = pendingTextureRenders.get(uniform);
     if (!renderTexture) continue;
-    renderTexture(canvas);
     pendingTextureRenders.delete(uniform);
+    renderTexture(canvas);
   }
 
   gl.useProgram(p);

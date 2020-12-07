@@ -40,9 +40,10 @@ const main = () => {
     Vec2Attribute('a_Position', PLANE_VERTICES),
     Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),
   ];
+  const resolution = Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]);
 
   const heightMapA = Texture2DUniform('u_HeightMap', initialHeightMap());
-  const heightMapB = Texture2DUniform('u_HeightMap');
+  const heightMapB = Texture2DUniform('u_HeightMap', initialHeightMap());
 
   const mouseDown = BooleanUniform('u_MouseDown', false);
   canvas.addEventListener('mousedown', () => mouseDown.set(true));
@@ -58,12 +59,12 @@ const main = () => {
     mousePosition.set([x, y]);
   });
 
-  const waveShader = (sourceHeightMap) =>
+  const waveShader = (heightMap) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, waveFragShaderSrc, {
       attributes,
       uniforms: [
-        Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]),
-        sourceHeightMap,
+        resolution,
+        heightMap,
         mouseDown,
         mousePosition,
       ],
@@ -71,16 +72,25 @@ const main = () => {
   const waveShaderAtoB = waveShader(heightMapA);
   const waveShaderBtoA = waveShader(heightMapB);
 
+  const riverbed =
+    Texture2DUniform('u_Riverbed', document.getElementById('riverbed'));
+
   const canvasShader = (heightMap) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
       attributes,
-      uniforms: [heightMap],
+      uniforms: [
+        heightMap,
+        riverbed,
+        resolution,
+      ],
     });
   const canvasShaderA = canvasShader(heightMapA);
   const canvasShaderB = canvasShader(heightMapB);
 
   let flag = false;
+  let i = 0;
   const animate = () => {
+    i++;
     flag = !flag;
     if (flag) {
       waveShaderAtoB(heightMapB);
@@ -89,7 +99,11 @@ const main = () => {
       waveShaderBtoA(heightMapA);
       canvasShaderA(canvas);
     }
-    window.requestAnimationFrame(animate);
+    if (i === 3) {
+      console.log('done');
+      return;
+    }
+    setTimeout(animate, 500);
   };
   animate();
 };

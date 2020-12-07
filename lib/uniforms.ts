@@ -325,11 +325,13 @@ interface TextureBuffers {
 export class Texture2DUniformImpl extends UniformBase<TexImageSource>
   implements Uniform<TexImageSource> {
   private offset: number;
-  public texture: WebGLTexture;
-  private buffersCache: TextureBuffers;
+  private texture: WebGLTexture;
+  private textureBuffers: TextureBuffers;
 
   private shouldBuildTexture() {
-    return !this.texture || this.data() instanceof HTMLVideoElement;
+    return !this.textureBuffers // Not a texture whose source is a framebuffer.
+      && this.dataOrCb // Has data. TODO has data updated?
+      && (!this.texture || this.data() instanceof HTMLVideoElement);
   }
 
   set(dataOrCb: IsOrReturns<TexImageSource>) {
@@ -338,27 +340,30 @@ export class Texture2DUniformImpl extends UniformBase<TexImageSource>
     return this;
   }
 
-  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+  prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.offset)) {
-      this.offset = newTextureOffset(program);
+      this.offset = newTextureOffset(program, this.name);
     }
     if (this.shouldBuildTexture()) {
       this.texture = texture2d(gl, this.data());
     }
-    send2DTexture(gl, program, this.offset, this.texture);
+  }
+
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+    send2DTexture(gl, program, this.name, this.offset, this.texture);
   }
 
   buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
-    if (this.buffersCache) return this.buffersCache;
+    if (this.textureBuffers) return this.textureBuffers;
     const frameBuffer = gl.createFramebuffer();
     const width = viewport[2] - viewport[0];
     const height = viewport[3] - viewport[1];
-    this.buffersCache = {
+    this.textureBuffers = {
       frameBuffer,
       renderBuffer: renderBuffer(gl, frameBuffer, width, height),
     };
     this.texture = texture2DFromFramebuffer(gl, frameBuffer, width, height);
-    return this.buffersCache;
+    return this.textureBuffers;
   }
 }
 
