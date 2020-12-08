@@ -2,7 +2,7 @@
  * @fileoverview Module for GL context related operations.
  */
 
-import {isPowerOfTwo} from './math';
+import {Cube, CubeFace, isCube, isPowerOfTwo} from './math';
 
 const contextCache =
   new WeakMap<HTMLCanvasElement, WebGLRenderingContext>();
@@ -231,8 +231,17 @@ export const newTextureOffset = (program: WebGLProgram,
   return curOffset;
 };
 
-const isVideo = (data: TexImageSource): data is HTMLVideoElement =>
-  data instanceof HTMLVideoElement;
+/**
+ * Get if texture data is for a video source.
+ */
+export const isVideo =
+  (data: TexImageSource | Cube<TexImageSource>): boolean => {
+    if (isCube(data)) {
+      return Object.keys(
+        data).some((k: CubeFace) => data[k] instanceof HTMLVideoElement);
+    }
+    return data instanceof HTMLVideoElement;
+  };
 
 /**
  * Create a 2D texture with the provided data.
@@ -252,19 +261,64 @@ export const texture2d = (gl: WebGLRenderingContext,
   return texture;
 };
 
+const glTexCubeMapFaces: Cube<GLenum> = {
+  posx: WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_X,
+  negx: WebGLRenderingContext.TEXTURE_CUBE_MAP_NEGATIVE_X,
+  posy: WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_Y,
+  negy: WebGLRenderingContext.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+  posz: WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_Z,
+  negz: WebGLRenderingContext.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+};
+
+const cubeFacesArePowersOfTwo = (data: Cube<TexImageSource>): boolean => {
+  for (const cf of Object.keys(data) as CubeFace[]) {
+    if (!isPowerOfTwo(data[cf].width) || !isPowerOfTwo(data[cf].height)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+export const cubeTexure = (gl: WebGLRenderingContext,
+                           data: Cube<TexImageSource>): WebGLTexture => {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+  for (const cf of Object.keys(data) as CubeFace[]) {
+    gl.texImage2D(
+      glTexCubeMapFaces[cf], 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[cf]);
+  }
+  if (!isVideo(data) && cubeFacesArePowersOfTwo(data)) {
+    gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+  } else {
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  return texture;
+};
+
+const sendTexture = (target: GLenum) =>
+  (gl: WebGLRenderingContext,
+   program: WebGLProgram,
+   name: string,
+   offset: number,
+   texture: WebGLTexture) => {
+    const loc = gl.getUniformLocation(program, name);
+    gl.uniform1i(loc, offset);
+    gl.activeTexture(gl.TEXTURE0 + offset);
+    gl.bindTexture(target, texture);
+   };
+
 /**
  * Send a 2D texture as a uniform to a shader.
  */
-export const send2DTexture = (gl: WebGLRenderingContext,
-                              program: WebGLProgram,
-                              name: string,
-                              offset: number,
-                              texture: WebGLTexture) => {
-  const loc = gl.getUniformLocation(program, name);
-  gl.uniform1i(loc, offset);
-  gl.activeTexture(gl.TEXTURE0 + offset);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-};
+export const send2DTexture = sendTexture(WebGLRenderingContext.TEXTURE_2D);
+
+/**
+ * Send a cube texture as a uniform to a shader.
+ */
+export const sendCubeTexture =
+  sendTexture(WebGLRenderingContext.TEXTURE_CUBE_MAP);
 
 /**
  * Creates a render buffer from a given frame buffer.

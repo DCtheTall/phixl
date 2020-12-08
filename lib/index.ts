@@ -7,6 +7,7 @@ export * from './constants';
 export * from './shader';
 export {
   BooleanUniform,
+  CubeTextureUniform,
   FloatUniform,
   IdentityMat2Uniform,
   IdentityMat3Uniform,

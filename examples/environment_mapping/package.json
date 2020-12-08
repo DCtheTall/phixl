@@ -1,0 +1,19 @@
+{
+  "name": "phixl-example-environment_mapping",
+  "version": "1.0.0",
+  "description": "An example of using the Phixl library to render a cube with WebGL.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "dependencies": {
+    "express": "^4.17.1",
+    "glslify-loader": "^2.0.0",
+    "morgan": "^1.10.0",
+    "pug": "^3.0.0",
+    "raw-loader": "^4.0.1",
+    "webpack": "^4.44.1"
+  }
+}

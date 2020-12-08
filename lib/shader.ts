@@ -3,10 +3,10 @@
  */
 
 import {Attribute} from './attributes';
-import {Viewport, glContext, glRender, program, sendIndices} from './gl';
-import {Texture2DUniformImpl, Uniform, UniformData, isTextureUniform} from './uniforms';
+import {Viewport, glContext, glRender, program, sendIndices, renderBuffer} from './gl';
+import {TextureUniform, TextureData, Uniform, UniformData, isTextureUniform} from './uniforms';
 
-type RenderTarget = HTMLCanvasElement | Texture2DUniformImpl;
+type RenderTarget = HTMLCanvasElement | TextureUniform<TextureData>;
 
 type ShaderFunc = (target: RenderTarget) => void;
 
@@ -48,7 +48,7 @@ const sendDataToShader = (gl: WebGLRenderingContext,
 type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 
 const pendingTextureRenders =
-  new WeakMap<Texture2DUniformImpl, TextureRenderFunc>();
+  new WeakMap<TextureUniform<TextureData>, TextureRenderFunc>();
 
 const renderShader = (canvas: HTMLCanvasElement,
                       nVertices: number,
@@ -62,7 +62,7 @@ const renderShader = (canvas: HTMLCanvasElement,
 
   // Render any textures that this shader depends on.
   // TODO investigate cycle detection.
-  for (const uniform of opts.uniforms) {
+  for (let uniform of opts.uniforms) {
     if (!isTextureUniform(uniform)) continue;
     uniform.prepare(gl, program);
     const renderTexture = pendingTextureRenders.get(uniform);
@@ -85,15 +85,17 @@ const renderShader = (canvas: HTMLCanvasElement,
 const createTextureRenderFunc = (nVertices: number,
                                  vertexSrc: string,
                                  fragmentSrc: string,
-                                 target: Texture2DUniformImpl,
+                                 target: TextureUniform<TextureData>,
                                  opts: ShaderOptions): TextureRenderFunc =>
   (canvas: HTMLCanvasElement) => {
     const gl = glContext(canvas);
     const viewport = opts.viewport || defaultViewport(canvas);
-    const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
-    renderShader(
-      canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer, renderBuffer,
-      opts);
+    const {frameBuffers, renderBuffers} = target.buffers(gl, viewport);
+    for (let i = 0; i < frameBuffers.length; i++) {
+      renderShader(
+        canvas, nVertices, vertexSrc, fragmentSrc, frameBuffers[i],
+        renderBuffers[i], opts);
+    }
   };
 
 /**

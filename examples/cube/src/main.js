@@ -24,7 +24,6 @@ const main = () => {
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
-  const img = document.getElementById('texture');
 
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {
@@ -53,7 +52,7 @@ const main = () => {
         /* near */ 1, /* far */ 1e6),
       // Normal matrix is automatically updated when model matrix is updated.
       NormalMatUniform('u_NormalMat', modelMat),
-      Texture2DUniform('u_Texture', img),
+      Texture2DUniform('u_Texture', document.getElementById('texture')),
     ],
   });
 

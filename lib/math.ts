@@ -333,3 +333,19 @@ export const transpose = <M extends Matrix>(A: M): M => {
   }
   return T;
 }
+
+/**
+ * Union type of all different faces for a cube.
+ */
+export type CubeFace = 'posx' | 'negx' | 'posy' | 'negy' | 'posz' | 'negz';
+
+const cubeFaces: CubeFace[] = ['posx', 'negx', 'posy', 'negy', 'posz', 'negz'];
+
+/**
+ * Cube type has properties for each cube face.
+ */
+export type Cube<T> = Record<CubeFace, T>;
+
+export const isCube = <T>(obj: any): obj is Cube<T> => {
+  return Boolean(obj) && cubeFaces.every(k => obj[k] !== undefined);
+};

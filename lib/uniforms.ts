@@ -5,6 +5,8 @@
 import {
   UniformType,
   Viewport,
+  cubeTexure,
+  isVideo,
   newTextureOffset,
   renderBuffer,
   send2DTexture,
@@ -13,14 +15,17 @@ import {
   sendVectorUniform,
   texture2d,
   texture2DFromFramebuffer,
+  sendCubeTexture,
 } from './gl';
 import {
+  Cube,
   Matrix,
   Matrix4,
   Vector3,
   Vector4,
   identity,
   inverse,
+  isCube,
   lookAt,
   perspective,
   rotate,
@@ -31,42 +36,28 @@ import {
 
 type IsOrReturns<T> = T | (() => T);
 
+type CubeTexSource = Cube<TexImageSource>
+
 /**
  * Types of data that uniforms accept.
  */
-export type UniformData = number | Float32List | TexImageSource;
+export type UniformData = number | Float32List | TexImageSource | CubeTexSource;
 
-/**
- * Interface for abstraction for sending uniforms to shaders.
- */
-export interface Uniform<Data extends UniformData> {
-  /**
-   * Send the data to the shader.
-   */
-  send: (gl: WebGLRenderingContext, program: WebGLProgram) => void;
-
-  /**
-   * Set the data that it sends to the shader.
-   */
-  set: (dataOrCb: IsOrReturns<Data>) => Uniform<Data>;
-
-  /**
-   * Returns the current data for this uniform.
-   */
-  data: () => Data;
-}
-
-type BytesUniformType =
-  UniformType.BOOLEAN | UniformType.FLOAT | UniformType.INTEGER;
-
-class UniformBase<Data> {
+export abstract class Uniform<Data extends UniformData> {
   constructor(
     protected readonly type: UniformType,
     public readonly name: string,
     protected dataOrCb?: IsOrReturns<Data>,
   ) {}
 
-  set(dataOrCb: Data) {
+  static checkType(u: Uniform<UniformData>, wantType: UniformType) {
+    if (u.type !== wantType) {
+      throw new TypeError(
+        `Expected uniform with type ${wantType} got type ${u.type}`);
+    }
+  }
+
+  set(dataOrCb: IsOrReturns<Data>) {
     this.dataOrCb = dataOrCb;
     return this;
   }
@@ -78,15 +69,14 @@ class UniformBase<Data> {
     return this.dataOrCb;
   }
 
-  static checkType<Data>(u: UniformBase<Data>, wantType: UniformType) {
-    if (u.type !== wantType) {
-      throw new TypeError(
-        `Expected uniform with type ${wantType} got type ${u.type}`);
-    }
-  }
+  // virtual
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {}
 }
 
-class BytesUniform extends UniformBase<number> implements Uniform<number> {
+type BytesUniformType =
+  UniformType.BOOLEAN | UniformType.FLOAT | UniformType.INTEGER;
+
+class BytesUniform extends Uniform<number> {
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.data())) {
       throw TypeError(`Data for ${this.type} uniform should be a number`);
@@ -95,13 +85,12 @@ class BytesUniform extends UniformBase<number> implements Uniform<number> {
   }
 }
 
-type UniformBuilder = (name: string, data?: IsOrReturns<UniformData>) => Uniform<UniformData>;
-
 /**
  * Create a builder function for each type of numeric uniform.
  */
-const bytesUniform = (type: BytesUniformType): UniformBuilder =>
-  (name: string, data?: number) => new BytesUniform(type, name, data);
+const bytesUniform = (type: BytesUniformType) =>
+  (name: string, data?: IsOrReturns<number>) =>
+    new BytesUniform(type, name, data);
 
 /**
  * Send a boolean uniform to a shader.
@@ -120,15 +109,12 @@ export const IntegerUniform = bytesUniform(UniformType.INTEGER);
 
 type SequenceUniformType = UniformType.VECTOR | UniformType.MATRIX;
 
-type SequenceUniformData = Float32List;
-
-class SequenceUniform extends UniformBase<SequenceUniformData>
-  implements Uniform<SequenceUniformData> {
+class SequenceUniform extends Uniform<Float32List> {
   constructor(
     type: SequenceUniformType,
     name: string,
     public readonly dimension: number,
-    dataOrCb?: Float32List,
+    dataOrCb?: IsOrReturns<Float32List>,
   ) {
     super(type, name, dataOrCb);
   }
@@ -156,7 +142,7 @@ class SequenceUniform extends UniformBase<SequenceUniformData>
     }
   }
 
-  set(dataOrCb: IsOrReturns<SequenceUniformData>) {
+  set(dataOrCb: IsOrReturns<Float32List>) {
     this.dataOrCb = dataOrCb;
     this.validateData();
     return this;
@@ -169,12 +155,15 @@ class SequenceUniform extends UniformBase<SequenceUniformData>
   }
 }
 
+type SequenceUniformBuilder =
+  (name: string, data?: IsOrReturns<Float32List>) => SequenceUniform;
+
 /**
  * Creates builder functions for vector and matrix uniforms.
  */
 const sequenceUniform =
-  (type: SequenceUniformType, dimension: number): UniformBuilder =>
-    (name: string, data?: Float32List) =>
+  (type: SequenceUniformType, dimension: number): SequenceUniformBuilder =>
+    (name: string, data?: IsOrReturns<Float32List>) =>
       new SequenceUniform(type, name, dimension, data);
 
 /**
@@ -208,7 +197,7 @@ export const Mat3Uniform = sequenceUniform(UniformType.MATRIX, 3);
 export const Mat4Uniform = sequenceUniform(UniformType.MATRIX, 4);
 
 const matrixUniform =
-  (dimension: number, identity?: Matrix) =>
+  (dimension: number, identity?: Matrix): SequenceUniformBuilder =>
     (name: string) =>
       sequenceUniform(UniformType.MATRIX, dimension)(name, identity);
 
@@ -233,7 +222,7 @@ export const IdentityMat4Uniform = matrixUniform(4, identity(4));
  */
 export const Translate = (x: number, y: number, z: number) =>
   (u: SequenceUniform): SequenceUniform => {
-    UniformBase.checkType(u, UniformType.MATRIX);
+    Uniform.checkType(u, UniformType.MATRIX);
     SequenceUniform.checkDimension(u, 4);
     return u.set(translate(u.data() as Matrix4, x, y, z));
   };
@@ -243,7 +232,7 @@ export const Translate = (x: number, y: number, z: number) =>
  * transformation. Takes 1, 3 or 4 arguments.
  */
 export const Scale = (...args: number[]) => (u: SequenceUniform) => {
-  UniformBase.checkType(u, UniformType.MATRIX);
+  Uniform.checkType(u, UniformType.MATRIX);
   return u.set(scale(u.data() as Matrix4, ...args));
 };
 
@@ -253,7 +242,7 @@ export const Scale = (...args: number[]) => (u: SequenceUniform) => {
  */
 export const Rotate = (theta: number, ...axis: Vector3) =>
   (u: SequenceUniform) => {
-    UniformBase.checkType(u, UniformType.MATRIX);
+    Uniform.checkType(u, UniformType.MATRIX);
     return u.set(rotate(u.data() as Matrix, theta, ...axis));
   };
 
@@ -289,7 +278,7 @@ export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}): Seque
  * the normal matrix uniform will receive
  */
 export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
-  UniformBase.checkType(modelMat, UniformType.MATRIX);
+  Uniform.checkType(modelMat, UniformType.MATRIX);
   SequenceUniform.checkDimension(modelMat, 4);
   return sequenceUniform(UniformType.MATRIX, 4)(
     name,
@@ -314,25 +303,45 @@ export const PerspectiveMatUniform =
      sequenceUniform(UniformType.MATRIX, 4)(
        name, perspective(fovy, aspect, near, far));
 
+/**
+ * Possible types to use as texture data sources.
+ */
+export type TextureData = TexImageSource | CubeTexSource;
+
 interface TextureBuffers {
-  frameBuffer: WebGLFramebuffer;
-  renderBuffer: WebGLFramebuffer;
+  frameBuffers: WebGLFramebuffer[];
+  renderBuffers: WebGLFramebuffer[];
+}
+
+export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
+  protected offset: number;
+  protected texture: WebGLTexture;
+  protected textureBuffers: TextureBuffers;
+
+  protected shouldBuildTexture() {
+    return !this.textureBuffers // Not a texture whose source is a framebuffer.
+      && this.dataOrCb // Has data. TODO caching?
+      && (!this.texture || isVideo(this.data()));
+  }
+
+  // virtual
+  prepare(gl: WebGLRenderingContext, program: WebGLProgram) {}
+
+  // virtual
+  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
+    return null;
+  }
 }
 
 /**
- * Implementation of a texture 2D uniform.
-*/
-export class Texture2DUniformImpl extends UniformBase<TexImageSource>
-  implements Uniform<TexImageSource> {
-  private offset: number;
-  private texture: WebGLTexture;
-  private textureBuffers: TextureBuffers;
+ * Tests if a uniform is for a texture.
+ */
+export const isTextureUniform =
+  (u: Uniform<UniformData>): u is TextureUniform<TextureData> =>
+    u instanceof TextureUniform;
 
-  private shouldBuildTexture() {
-    return !this.textureBuffers // Not a texture whose source is a framebuffer.
-      && this.dataOrCb // Has data. TODO has data updated?
-      && (!this.texture || this.data() instanceof HTMLVideoElement);
-  }
+class Texture2DUniformImpl extends TextureUniform<TexImageSource>
+  implements TextureUniform<TexImageSource> {
 
   set(dataOrCb: IsOrReturns<TexImageSource>) {
     this.dataOrCb = dataOrCb;
@@ -359,8 +368,8 @@ export class Texture2DUniformImpl extends UniformBase<TexImageSource>
     const width = viewport[2] - viewport[0];
     const height = viewport[3] - viewport[1];
     this.textureBuffers = {
-      frameBuffer,
-      renderBuffer: renderBuffer(gl, frameBuffer, width, height),
+      frameBuffers: [frameBuffer],
+      renderBuffers: [renderBuffer(gl, frameBuffer, width, height)],
     };
     this.texture = texture2DFromFramebuffer(gl, frameBuffer, width, height);
     return this.textureBuffers;
@@ -368,17 +377,46 @@ export class Texture2DUniformImpl extends UniformBase<TexImageSource>
 }
 
 /**
- * Tests if a uniform is for a texture.
- */
-export const isTextureUniform =
-  (u: Uniform<UniformData>): u is Texture2DUniformImpl =>
-    u instanceof Texture2DUniformImpl;
-
-// TODO cube textures
-
-/**
  * Sends a 2D texture uniform to a shader.
  */
-export const Texture2DUniform: UniformBuilder =
-  (name: string, data?: TexImageSource) =>
+export const Texture2DUniform =
+  (name: string, data?: IsOrReturns<TexImageSource>) =>
     new Texture2DUniformImpl(UniformType.TEXTURE, name, data);
+
+class CubeTextureImpl extends TextureUniform<CubeTexSource> {
+  private validateData() {
+    if (!isCube(this.data())) {
+      throw new Error(
+        'You must provide an object with "posx", "negx", "posy", "negy", ' +
+        '"posz", and "negz" keys');
+    }
+  }
+
+  set(dataOrCb: IsOrReturns<CubeTexSource>) {
+    this.dataOrCb = dataOrCb;
+    this.validateData();
+    this.texture = undefined;
+    return this;
+  }
+
+  prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
+    if (isNaN(this.offset)) {
+      this.offset = newTextureOffset(program, this.name);
+    }
+    if (this.shouldBuildTexture()) {
+      this.texture = cubeTexure(gl, this.data());
+    }
+  }
+
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+    sendCubeTexture(gl, program, this.name, this.offset, this.texture);
+  }
+  
+  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
+    throw new Error('not implemented');
+  }
+}
+
+export const CubeTextureUniform =
+  (name: string, data?: IsOrReturns<CubeTexSource>) =>
+    new CubeTextureImpl(UniformType.TEXTURE, name, data);
