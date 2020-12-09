@@ -23,6 +23,7 @@ import {
   Matrix4,
   Vector3,
   Vector4,
+  cubeFaces,
   identity,
   inverse,
   isCube,
@@ -30,8 +31,8 @@ import {
   perspective,
   rotate,
   scale,
-  transpose,
   translate,
+  transpose,
 } from './math';
 
 type IsOrReturns<T> = T | (() => T);
@@ -289,6 +290,8 @@ export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
 /**
  * Sends a view matrix uniform for the given
  * eye, at, and up vectors.
+ * 
+ * TODO add some API surface for changing the vectors easily.
  */
 export const ViewMatUniform =
   (name: string, eye: Vector3, at: Vector3, up: Vector3) =>
@@ -309,8 +312,8 @@ export const PerspectiveMatUniform =
 export type TextureData = TexImageSource | CubeTexSource;
 
 interface TextureBuffers {
-  frameBuffers: WebGLFramebuffer[];
-  renderBuffers: WebGLFramebuffer[];
+  frameBuffer: WebGLFramebuffer | Cube<WebGLFramebuffer>;
+  renderBuffer: WebGLFramebuffer | Cube<WebGLRenderbuffer>;
 }
 
 export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
@@ -324,12 +327,12 @@ export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
       && (!this.texture || isVideo(this.data()));
   }
 
-  // virtual
-  prepare(gl: WebGLRenderingContext, program: WebGLProgram) {}
+  prepare(gl: WebGLRenderingContext, p: WebGLProgram) {
+    throw new Error('Virtual method should not be invoked');
+  }
 
-  // virtual
-  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
-    return null;
+  buffers(gl: WebGLRenderingContext, v: Viewport): TextureBuffers {
+    throw new Error('Virtual method should not be invoked');
   }
 }
 
@@ -368,8 +371,8 @@ class Texture2DUniformImpl extends TextureUniform<TexImageSource>
     const width = viewport[2] - viewport[0];
     const height = viewport[3] - viewport[1];
     this.textureBuffers = {
-      frameBuffers: [frameBuffer],
-      renderBuffers: [renderBuffer(gl, frameBuffer, width, height)],
+      frameBuffer,
+      renderBuffer: renderBuffer(gl, frameBuffer, width, height),
     };
     this.texture = texture2DFromFramebuffer(gl, frameBuffer, width, height);
     return this.textureBuffers;
@@ -413,10 +416,25 @@ class CubeTextureImpl extends TextureUniform<CubeTexSource> {
   }
   
   buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
-    throw new Error('not implemented');
+    if (this.textureBuffers) return this.textureBuffers;
+    const fBuffers: Partial<Cube<WebGLFramebuffer>> = {};
+    const rBuffers: Partial<Cube<WebGLRenderbuffer>> = {};
+    const width = viewport[2] - viewport[0];
+    const height = viewport[3] - viewport[1];
+    for (const cf of cubeFaces()) {
+      fBuffers[cf] = gl.createFramebuffer();
+      rBuffers[cf] = renderBuffer(gl, fBuffers[cf], width, height);
+    } 
+    this.textureBuffers = {frameBuffer: fBuffers, renderBuffer: rBuffers};
+    return this.textureBuffers;
   }
 }
 
+/**
+ * Sends a cube texture uniform to a shader.
+ */
 export const CubeTextureUniform =
   (name: string, data?: IsOrReturns<CubeTexSource>) =>
     new CubeTextureImpl(UniformType.TEXTURE, name, data);
+
+// TODO CubeCameraUniform based on NormalMatUniform and CubeTextureUniform

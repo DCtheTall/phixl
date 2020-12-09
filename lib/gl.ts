@@ -2,7 +2,7 @@
  * @fileoverview Module for GL context related operations.
  */
 
-import {Cube, CubeFace, isCube, isPowerOfTwo} from './math';
+import {Cube, CubeFace, cubeFaces, isCube, isPowerOfTwo} from './math';
 
 const contextCache =
   new WeakMap<HTMLCanvasElement, WebGLRenderingContext>();
@@ -271,7 +271,7 @@ const glTexCubeMapFaces: Cube<GLenum> = {
 };
 
 const cubeFacesArePowersOfTwo = (data: Cube<TexImageSource>): boolean => {
-  for (const cf of Object.keys(data) as CubeFace[]) {
+  for (const cf of cubeFaces()) {
     if (!isPowerOfTwo(data[cf].width) || !isPowerOfTwo(data[cf].height)) {
       return false;
     }
@@ -279,11 +279,14 @@ const cubeFacesArePowersOfTwo = (data: Cube<TexImageSource>): boolean => {
   return true;
 };
 
+/**
+ * Create a cube texture with the provided data.
+ */
 export const cubeTexure = (gl: WebGLRenderingContext,
                            data: Cube<TexImageSource>): WebGLTexture => {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
-  for (const cf of Object.keys(data) as CubeFace[]) {
+  for (const cf of cubeFaces()) {
     gl.texImage2D(
       glTexCubeMapFaces[cf], 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[cf]);
   }
@@ -303,10 +306,10 @@ const sendTexture = (target: GLenum) =>
    name: string,
    offset: number,
    texture: WebGLTexture) => {
-    const loc = gl.getUniformLocation(program, name);
-    gl.uniform1i(loc, offset);
-    gl.activeTexture(gl.TEXTURE0 + offset);
-    gl.bindTexture(target, texture);
+     const loc = gl.getUniformLocation(program, name);
+     gl.uniform1i(loc, offset);
+     gl.activeTexture(gl.TEXTURE0 + offset);
+     gl.bindTexture(target, texture);
    };
 
 /**
@@ -368,11 +371,12 @@ export type Viewport = [number, number, number, number];
  */
 export const glRender = (gl: WebGLRenderingContext,
                          nVertices: number,
+                         clear: boolean,
                          viewport: Viewport,
                          mode: number,
                          drawElements: boolean) => {
   gl.clearColor(0, 0, 0, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (clear) gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(...viewport);
   if (drawElements) {
     gl.drawElements(mode, nVertices, gl.UNSIGNED_SHORT, 0);

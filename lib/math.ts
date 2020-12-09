@@ -339,7 +339,11 @@ export const transpose = <M extends Matrix>(A: M): M => {
  */
 export type CubeFace = 'posx' | 'negx' | 'posy' | 'negy' | 'posz' | 'negz';
 
-const cubeFaces: CubeFace[] = ['posx', 'negx', 'posy', 'negy', 'posz', 'negz'];
+/**
+ * Returns an array of all the cube face keys.
+ */
+export const cubeFaces = (): CubeFace[] =>
+  ['posx', 'negx', 'posy', 'negy', 'posz', 'negz'];
 
 /**
  * Cube type has properties for each cube face.
@@ -347,5 +351,5 @@ const cubeFaces: CubeFace[] = ['posx', 'negx', 'posy', 'negy', 'posz', 'negz'];
 export type Cube<T> = Record<CubeFace, T>;
 
 export const isCube = <T>(obj: any): obj is Cube<T> => {
-  return Boolean(obj) && cubeFaces.every(k => obj[k] !== undefined);
+  return Boolean(obj) && cubeFaces().every(k => obj[k] !== undefined);
 };
