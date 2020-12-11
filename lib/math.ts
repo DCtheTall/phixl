@@ -7,7 +7,7 @@
 /**
  * Returns if a number is a power of two.
  */
-export const isPowerOfTwo = (n: number) => ((n & (n - 1)) === 0);
+export const isPowerOfTwo = (n: number): boolean => ((n & (n - 1)) === 0);
 
 /**
  * A 3-dimensional vector type as a number array.
@@ -53,14 +53,22 @@ export type Matrix4 = [
  */
 export type Matrix = Matrix2 | Matrix3 | Matrix4;
 
-type MatrixDimension = 2 | 3 | 4;
+type Dimension = 2 | 3 | 4;
 
-const dimension = (mat: Matrix) => Math.sqrt(mat.length) as MatrixDimension;
+const matDimension = (arr: Matrix) => Math.sqrt(arr.length) as Dimension;
 
-const zeros = (dim: MatrixDimension): Matrix =>
+const vecDimension = (arr: Vector) => arr.length as Dimension;
+
+const zeros = (dim: Dimension) =>
   [...Array(dim ** 2)].map(() => 0) as Matrix;
 
-export const identity = (dim: MatrixDimension): Matrix => {
+const zeroVector = (dim: Dimension) =>
+  [...Array(dim)].map(() => 0) as Vector;
+
+/**
+ * Initialize an identity matrix with the provided dimension.
+ */
+export const identity = (dim: Dimension): Matrix => {
   const M: Matrix = zeros(dim);
   for (let i = 0; i < dim; i++) {
     M[(i * dim) + i] = 1;
@@ -68,11 +76,7 @@ export const identity = (dim: MatrixDimension): Matrix => {
   return M;
 }
 
-const multiply = <M extends Matrix>(A: M, B: M) => {
-  const d = dimension(A);
-  if (d !== dimension(B)) {
-    throw new Error('Cannot multiply matrices with a different dimension');
-  }
+const multiplyM = <M extends Matrix>(A: M, B: M, d: Dimension): M => {
   const result = zeros(d) as M;
   for (let i = 0; i < d; i++)
   for (let j = 0; j < d; j++)
@@ -81,6 +85,33 @@ const multiply = <M extends Matrix>(A: M, B: M) => {
   }
   return result;
 };
+
+const multiplyMv =
+  <M extends Matrix, V extends Vector>(A: M, b: V, d: Dimension): V => {
+    const result = zeroVector(d) as V;
+    console.log(A, b);
+    for (let i = 0; i < d; i++)
+    for (let j = 0; j < d; j++) {
+      result[i] += A[(i * d) + j] * b[j];
+    }
+    return result;
+  };
+
+/**
+ * Can be used for matrix-matrix and matrix-vector multiplication.
+ */
+export const multiply =
+  <M extends Matrix, V extends Vector>(A: M, B: M | V): M | V => {
+    const md = matDimension(A);
+    if (md !== matDimension(B as M)) {
+      const vd = vecDimension(B as V);
+      if (md !== vd) {
+        throw new Error('Cannot multiply matrices with a different dimension');
+      }
+      return multiplyMv(A, B as V, md);
+    }
+    return multiplyM(A, B as M, md);
+  };
 
 /**
  * Apply a 3D transmation to a 4-dimensional matrix, M.
@@ -97,11 +128,11 @@ export const translate =
 /**
  * Apply a scale transformation to a matrix.
  */
-export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
+export const scale = <M extends Matrix>(A: M, ...args: number[]): M => {
   if (!args.length) {
     throw new Error('You must provide at least one number to scale a matrix');
   }
-  const d = dimension(A);
+  const d = matDimension(A);
   if (d === 4 && args.length === 2) {
     throw new Error(
       'You must provide 1, 3, or 4 arguments to scale for a 4D matrix');
@@ -114,7 +145,7 @@ export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
       S[(d * i) + i] = Number(isNaN(args[i]) ? args[0] : args[i]);
     }
   }
-  return multiply(S, A);
+  return multiply(S, A) as M;
 };
 
 type Quaternion = [number, number, number, number];
@@ -154,7 +185,7 @@ const rotate2 = (M: Matrix2, theta: number): Matrix2 => {
  */
 export const rotate =
   <M extends Matrix>(A: M, theta: number, ...axis: Vector3): M => {
-    const d = dimension(A);
+    const d = matDimension(A);
     if (d === 2) return rotate2(A as Matrix2, theta) as M;
     if (axis.length < 3) {
       throw new Error(
@@ -261,8 +292,8 @@ export const perspective =
   };
 
 const cofactor = <M extends Matrix>(A: M, p: number, q: number): M => {
-  const dim = dimension(A);
-  const out = zeros(dim - 1 as MatrixDimension) as M;
+  const dim = matDimension(A);
+  const out = zeros(dim - 1 as Dimension) as M;
   let i = 0;
   let j = 0;
   for (let row = 0; row < dim; row++)
@@ -279,7 +310,7 @@ const cofactor = <M extends Matrix>(A: M, p: number, q: number): M => {
 };
 
 const determinant = <M extends Matrix>(A: M): number => {
-  const dim = dimension(A);
+  const dim = matDimension(A);
   if (dim === 2) return A[0] * A[3] - A[1] * A[2];
   let result = 0;
   let sign = 1;
@@ -292,7 +323,7 @@ const determinant = <M extends Matrix>(A: M): number => {
 };
 
 const adjoint = <M extends Matrix>(A: M): M => {
-  const d = dimension(A);
+  const d = matDimension(A);
   const out = zeros(d) as M;
   for (let i = 0; i < d; i++)
   for (let j = 0; j < d; j++) {
@@ -313,7 +344,7 @@ export const inverse = <M extends Matrix>(A: M): M => {
     throw new Error('Cannot take the determinant of a singular matrix');
   }
   const adj = adjoint(A) as M;
-  const d = dimension(A);
+  const d = matDimension(A);
   const out = zeros(d) as M;
   for (let i = 0; i < d; i++)
   for (let j = 0; j < d; j++) {
@@ -327,7 +358,7 @@ export const inverse = <M extends Matrix>(A: M): M => {
  * Compute the transpose of a matrix.
  */
 export const transpose = <M extends Matrix>(A: M): M => {
-  const d = dimension(A);
+  const d = matDimension(A);
   const T = zeros(d) as M;
   for (let i = 0; i < d; i++)
   for (let j = 0; j < d; j++) {

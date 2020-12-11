@@ -21,13 +21,16 @@ const main = () => {
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
+  // Load shaders for the background and cube.
   const cubeVertSrc = require('./cube.vertex.glsl').default;
   const cubeFragSrc = require('./cube.fragment.glsl').default;
   const skyboxVertSrc = require('./skybox.vertex.glsl').default;
   const skyboxFragSrc = require('./skybox.fragment.glsl').default;
 
+  // Both shaders render a cube.
   const cubeVertices = Vec3Attribute('a_CubeVertex', CUBE_VERTICES)
 
+  // Some uniforms can be shared across both shaders.
   const modelMat = ModelMatUniform('u_ModelMat', {
     scale: 2,
     translate: [0, 0, -10],
@@ -55,9 +58,9 @@ const main = () => {
       indices: CUBE_INDICES,
       attributes: [cubeVertices],
       uniforms: [
-        skyboxTexture,
         viewMat,
         perspectiveMat,
+        skyboxTexture,
       ],
     });
 
