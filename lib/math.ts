@@ -15,6 +15,12 @@ export const isPowerOfTwo = (n: number) => ((n & (n - 1)) === 0);
 export type Vector3 = [number, number, number];
 
 /**
+ * Checks if an object is a Vector3.
+ */
+export const isVector3 = (obj: unknown): obj is Vector3 =>
+  Array.isArray(obj) && obj.length === 3 && obj.every(x => !isNaN(x));
+
+/**
  * A 4-dimensional vector type as a number array.
  */
 export type Vector4 = [number, number, number, number];
@@ -90,10 +96,6 @@ export const translate =
 
 /**
  * Apply a scale transformation to a matrix.
- * 
- * If you're applying the transform to a 4D matrix
- * and less than 4 numbers are supplied, then it
- * will not scale the 4th diagonal element.
  */
 export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
   if (!args.length) {
@@ -112,7 +114,7 @@ export const scale = <M extends Matrix>(A: M, ...args: number[]) => {
       S[(d * i) + i] = Number(isNaN(args[i]) ? args[0] : args[i]);
     }
   }
-  return multiply<M>(S, A);
+  return multiply(S, A);
 };
 
 type Quaternion = [number, number, number, number];
@@ -349,6 +351,8 @@ export const cubeFaces = (): CubeFace[] =>
  * Cube type has properties for each cube face.
  */
 export type Cube<T> = Record<CubeFace, T>;
+
+export type CubeOr<T> = T | Cube<T>;
 
 export const isCube = <T>(obj: any): obj is Cube<T> => {
   return Boolean(obj) && cubeFaces().every(k => obj[k] !== undefined);
