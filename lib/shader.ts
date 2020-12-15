@@ -3,9 +3,19 @@
  */
 
 import {Attribute} from './attributes';
-import {Viewport, glContext, glRender, program, sendIndices} from './gl';
-import {isCube} from './math';
-import {TextureUniform, TextureData, Uniform, UniformData, isTextureUniform} from './uniforms';
+import {Viewport, glContext, glProgram, glRender, sendIndices} from './gl';
+import {CubeFace} from './math';
+import {
+  CubeCameraUniformImpl,
+  CubeTextureImpl,
+  TextureUniform,
+  Texture2DUniformImpl,
+  TextureData,
+  Uniform,
+  UniformData,
+  isCubeTextureUniform,
+  isTextureUniform,
+} from './uniforms';
 
 /**
  * Interface for the options you can supply to Shader.
@@ -60,47 +70,78 @@ const renderShader = (canvas: HTMLCanvasElement,
                       rBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
   const gl = glContext(canvas);
-  const p = program(gl, vertexSrc, fragmentSrc);
+  const prog = glProgram(gl, vertexSrc, fragmentSrc);
 
   // Render any textures that this shader depends on.
   // TODO investigate cycle detection.
   for (let uniform of opts.uniforms) {
     if (!isTextureUniform(uniform)) continue;
-    uniform.prepare(gl, program);
+    uniform.prepare(gl, prog);
     const renderTexture = pendingTextureRenders.get(uniform);
     if (!renderTexture) continue;
     pendingTextureRenders.delete(uniform);
     renderTexture(canvas);
   }
 
-  gl.useProgram(p);
+  gl.useProgram(prog);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
   gl.bindRenderbuffer(gl.RENDERBUFFER, rBuffer);
 
-  sendDataToShader(gl, p, opts);
+  sendDataToShader(gl, prog, opts);
   glRender(
     gl, nVertices, clearOption(opts), opts.viewport || defaultViewport(canvas),
-    opts.mode || defaultOpts.mode,
-    /* drawElements= */ !!opts.indices);
+    opts.mode || defaultOpts.mode, /* drawElements= */ !!opts.indices);
 };
 
-const createTextureRenderFunc = (nVertices: number,
-                                 vertexSrc: string,
-                                 fragmentSrc: string,
-                                 target: TextureUniform<TextureData>,
-                                 opts: ShaderOptions): TextureRenderFunc =>
-  (canvas: HTMLCanvasElement) => {
+const renderCubeTexture = (canvas: HTMLCanvasElement,
+                           opts: ShaderOptions,
+                           target: CubeTextureImpl,
+                           nVertices: number,
+                           vertexSrc: string,
+                           fragmentSrc: string) => {
+  if (target instanceof CubeCameraUniformImpl) {
     const gl = glContext(canvas);
     const viewport = opts.viewport || defaultViewport(canvas);
     const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
-    if (isCube(frameBuffer) && isCube(renderBuffer)) {
-      // TODO render to cube texture
-      // TODO render cube camera to texture (need new uniform type)
-      throw new Error('Not implemented');
+    target.render((cf: CubeFace) => {
+      renderShader(
+        canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer[cf],
+        renderBuffer[cf], opts);
+    });
+    return;
+  }
+  // TODO render to cube texture without cube camera
+  throw new Error('Not implemented');
+};
+
+const render2DTexture = (canvas: HTMLCanvasElement,
+                         opts: ShaderOptions,
+                         target: Texture2DUniformImpl,
+                         nVertices: number,
+                         vertexSrc: string,
+                         fragmentSrc: string) => {
+  const gl = glContext(canvas);
+  const viewport = opts.viewport || defaultViewport(canvas);
+  const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
+  renderShader(
+    canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer,
+    renderBuffer, opts);
+};
+
+const createTextureRenderFunc = (target: TextureUniform<TextureData>,
+                                 nVertices: number,
+                                 vertexSrc: string,
+                                 fragmentSrc: string,
+                                 opts: ShaderOptions): TextureRenderFunc =>
+  (canvas: HTMLCanvasElement) => {
+    if (isCubeTextureUniform(target)) {
+      renderCubeTexture(
+        canvas, opts, target, nVertices, vertexSrc, fragmentSrc);
+      return;
     }
-    renderShader(
-      canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer,
-      renderBuffer, opts);
+    render2DTexture(
+      canvas, opts, target as Texture2DUniformImpl, nVertices, vertexSrc,
+      fragmentSrc);
   };
 
 type RenderTarget = HTMLCanvasElement | TextureUniform<TextureData>;
@@ -123,10 +164,10 @@ export const Shader = (nVertices: number,
       pendingTextureRenders.set(
         target,
         createTextureRenderFunc(
-          nVertices, vertexSrc, fragmentSrc, target, opts));
+          target, nVertices, vertexSrc, fragmentSrc, opts)); 
       return target;
     }
     throw new Error(
-      'Shader function must be called on a canvas or texture uniform');
+      'Shader function must be called with a canvas or texture uniform');
   };
 };

@@ -1,0 +1,17 @@
+body {
+  background: #f3f3f3;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+canvas {
+  background: #000;
+  height: 512px;
+  width: 512px;
+}
+
+img {
+  display: none;
+}

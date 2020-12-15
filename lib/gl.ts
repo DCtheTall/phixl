@@ -49,9 +49,9 @@ const programCache =
 /**
  * Create and compile a shader program. 
  */
-export const program = (gl: WebGLRenderingContext,
-                        vertexSrc: string,
-                        fragmentSrc: string): WebGLProgram => {
+export const glProgram = (gl: WebGLRenderingContext,
+                          vertexSrc: string,
+                          fragmentSrc: string): WebGLProgram => {
   const existing =
     programCache.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
   if (existing) return existing;
@@ -66,7 +66,7 @@ export const program = (gl: WebGLRenderingContext,
   gl.linkProgram(result);
   if (!gl.getProgramParameter(result, gl.LINK_STATUS)) {
     throw new Error(
-      `Shader failed to compile: ${gl.getProgramInfoLog(program)}`);
+      `Shader failed to compile: ${gl.getProgramInfoLog(result)}`);
   }
 
   if (!programCache.get(gl)) programCache.set(gl, new Map());
@@ -341,7 +341,7 @@ export const renderBuffer = (gl: WebGLRenderingContext,
 };
 
 /**
- * Create a 2D texture from a frame buffer.
+ * Create a 2D texture that will sample from a framebuffer.
  */
 export const texture2DFromFramebuffer = (gl: WebGLRenderingContext,
                                          fBuffer: WebGLFramebuffer,
@@ -349,15 +349,39 @@ export const texture2DFromFramebuffer = (gl: WebGLRenderingContext,
                                          height: number): WebGLTexture => {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
   gl.texImage2D(
     gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
     null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.framebufferTexture2D(
     gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  return texture;
+};
+
+/**
+ * Generate a cube texture which will sample from a cube of framebuffers.
+ */
+export const cubeTextureFromFramebuffer = (gl: WebGLRenderingContext,
+                                           frameBuffers: Cube<WebGLFramebuffer>,
+                                           width: number,
+                                           height: number): WebGLTexture => {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  for (const cf of cubeFaces()) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffers[cf]);
+    gl.texImage2D(
+      glTexCubeMapFaces[cf], 0, gl.RGBA, width, height, 0, gl.RGBA,
+      gl.UNSIGNED_BYTE, null);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, glTexCubeMapFaces[cf], texture, 0);
+  }
   return texture;
 };
 

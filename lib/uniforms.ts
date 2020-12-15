@@ -1,11 +1,14 @@
 /**
  * @fileoverview Shader uniforms module.
+ * 
+ * TODO struct uniform, array uniforms
  */
 
 import {
   UniformType,
   Viewport,
   cubeTexure,
+  cubeTextureFromFramebuffer,
   isVideo,
   newTextureOffset,
   renderBuffer,
@@ -19,17 +22,22 @@ import {
 } from './gl';
 import {
   Cube,
+  CubeFace,
   CubeOr,
+  Dimension,
   Matrix,
   Matrix4,
   Vector3,
   Vector4,
+  add,
+  cube,
   cubeFaces,
   identity,
   inverse,
   isCube,
   isVector3,
   lookAt,
+  multiply,
   perspective,
   rotate,
   scale,
@@ -44,6 +52,10 @@ type IsOrReturns<T> = T | (() => T);
  */
 export type UniformData = number | Float32List | CubeOr<TexImageSource>;
 
+/**
+ * Uniform base class. All uniforms are a superclass of this
+ * class.
+ */
 export abstract class Uniform<Data extends UniformData> {
   constructor(
     protected readonly type_: UniformType,
@@ -58,6 +70,11 @@ export abstract class Uniform<Data extends UniformData> {
     }
   }
 
+  static dataOrCallback<Data extends UniformData>(u: Uniform<Data>):
+    IsOrReturns<Data> {
+    return u.dataOrCb_;
+  }
+
   set(dataOrCb: IsOrReturns<Data>) {
     this.dataOrCb_ = dataOrCb;
     return this;
@@ -70,8 +87,9 @@ export abstract class Uniform<Data extends UniformData> {
     return this.dataOrCb_;
   }
 
-  // virtual
-  send(gl: WebGLRenderingContext, program: WebGLProgram) {}
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+    throw new Error('Virtual method should not be invoked');
+  }
 }
 
 type BytesUniformType =
@@ -197,25 +215,24 @@ export const Mat3Uniform = sequenceUniform(UniformType.MATRIX, 3);
  */
 export const Mat4Uniform = sequenceUniform(UniformType.MATRIX, 4);
 
-const matrixUniform =
-  (dimension: number, identity?: Matrix): SequenceUniformBuilder =>
-    (name: string) =>
-      sequenceUniform(UniformType.MATRIX, dimension)(name, identity);
+const identityMatUniform = (dimension: Dimension): SequenceUniformBuilder =>
+  (name: string) =>
+    sequenceUniform(UniformType.MATRIX, dimension)(name, identity(dimension));
 
 /**
  * Sends a 2-dimensional identity matrix to a shader.
  */
-export const IdentityMat2Uniform = matrixUniform(2, identity(2));
+export const IdentityMat2Uniform = identityMatUniform(2);
 
 /**
  * Sends a 3-dimensional identity matrix to a shader.
  */
-export const IdentityMat3Uniform = matrixUniform(3, identity(3));
+export const IdentityMat3Uniform = identityMatUniform(3);
 
 /**
  * Sends a 4-dimensional identity matrix to a shader.
  */
-export const IdentityMat4Uniform = matrixUniform(4, identity(4));
+export const IdentityMat4Uniform = identityMatUniform(4);
 
 /**
  * Create a transform on a Mat4Uniform that applies a 3D translation
@@ -256,6 +273,8 @@ interface ModelMatOptions {
 /**
  * Sends a model matrix to a shader as a uniform that applies
  * a scale, rotation, and translation (in that order).
+ * 
+ * TODO extract rotation matrix for normal matrix.
  */
 export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}): SequenceUniform => {
   let u = IdentityMat4Uniform(name) as SequenceUniform;
@@ -277,6 +296,8 @@ export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}): Seque
  * 
  * If M is the value of the model matrix uniform, then
  * the normal matrix uniform will receive
+ * 
+ * TODO this should be the inverse of just the rotation part of the transformation.
  */
 export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
   Uniform.checkType(modelMat, UniformType.MATRIX);
@@ -303,6 +324,12 @@ export class ViewMatUniformImpl extends SequenceUniform {
       () => lookAt(this.eye_, this.at_, this.up_));
   }
 
+  private static validateVector3 = (data: unknown) => {
+    if (!isVector3(data)) {
+      throw new Error('Expected 3 numbers as arguments');
+    }
+  }
+
   eye(): Vector3 {
     return [...this.eye_];
   }
@@ -315,24 +342,18 @@ export class ViewMatUniformImpl extends SequenceUniform {
     return [...this.up_];
   }
 
-  private static validateData_(data: unknown) {
-    if (!isVector3(data)) {
-      throw new Error('Expected 3 numbers as arguments');
-    }
-  }
-
   setEye(...eye: Vector3) {
-    ViewMatUniformImpl.validateData_(eye);
+    ViewMatUniformImpl.validateVector3(eye);
     this.eye_ = eye;
   }
 
   setAt(...at: Vector3) {
-    ViewMatUniformImpl.validateData_(at);
+    ViewMatUniformImpl.validateVector3(at);
     this.at_ = at.slice(0, 3) as Vector3;
   }
 
   setUp(...up: Vector3) {
-    ViewMatUniformImpl.validateData_(up);
+    ViewMatUniformImpl.validateVector3(up);
     this.up_ = [...up];
   }
 }
@@ -361,10 +382,15 @@ export const PerspectiveMatUniform =
  */
 export type TextureData = CubeOr<TexImageSource>;
 
-interface TextureBuffers {
-  frameBuffer: WebGLFramebuffer | Cube<WebGLFramebuffer>;
-  renderBuffer: WebGLFramebuffer | Cube<WebGLRenderbuffer>;
+interface Texture2DBuffers {
+  frameBuffer: WebGLFramebuffer;
+  renderBuffer: WebGLRenderbuffer;
 }
+
+type CubeTextureBuffers =
+  {[k in keyof Texture2DBuffers]: Cube<Texture2DBuffers[k]>};
+
+type TextureBuffers = Texture2DBuffers | CubeTextureBuffers;
 
 export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
   protected offset_: number;
@@ -384,6 +410,12 @@ export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
   buffers(gl: WebGLRenderingContext, v: Viewport): TextureBuffers {
     throw new Error('Virtual method should not be invoked');
   }
+
+  set(dataOrCb: IsOrReturns<Data>): this {
+    this.dataOrCb_ = dataOrCb;
+    this.texture_ = undefined;
+    return this;
+  }
 }
 
 /**
@@ -393,14 +425,11 @@ export const isTextureUniform =
   (u: Uniform<UniformData>): u is TextureUniform<TextureData> =>
     u instanceof TextureUniform;
 
-class Texture2DUniformImpl extends TextureUniform<TexImageSource>
-  implements TextureUniform<TexImageSource> {
-
-  set(dataOrCb: IsOrReturns<TexImageSource>) {
-    this.dataOrCb_ = dataOrCb;
-    this.texture_ = undefined;
-    return this;
-  }
+/**
+ * Implementation of a 2D texture uniform.
+ */
+export class Texture2DUniformImpl extends TextureUniform<TexImageSource> {
+  protected textureBuffers_: Texture2DBuffers;
 
   prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.offset_)) {
@@ -415,12 +444,14 @@ class Texture2DUniformImpl extends TextureUniform<TexImageSource>
     send2DTexture(gl, program, this.name, this.offset_, this.texture_);
   }
 
-  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
+  buffers(gl: WebGLRenderingContext, viewport: Viewport): Texture2DBuffers {
     if (this.textureBuffers_) return this.textureBuffers_;
     const frameBuffer = gl.createFramebuffer();
     const [,, width, height] = viewport;
-    this.textureBuffers_ =
-      {frameBuffer, renderBuffer: renderBuffer(gl, frameBuffer, width, height)};
+    this.textureBuffers_ = {
+      frameBuffer,
+      renderBuffer: renderBuffer(gl, frameBuffer, width, height),
+    };
     this.texture_ = texture2DFromFramebuffer(gl, frameBuffer, width, height);
     return this.textureBuffers_;
   }
@@ -433,7 +464,9 @@ export const Texture2DUniform =
   (name: string, data?: IsOrReturns<TexImageSource>) =>
     new Texture2DUniformImpl(UniformType.TEXTURE, name, data);
 
-class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
+export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
+  protected textureBuffers_: CubeTextureBuffers;
+
   private validateData() {
     if (!isCube(this.data())) {
       throw new Error(
@@ -442,7 +475,7 @@ class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     }
   }
 
-  set(dataOrCb: IsOrReturns<Cube<TexImageSource>>) {
+  set(dataOrCb: IsOrReturns<Cube<TexImageSource>>): this {
     this.dataOrCb_ = dataOrCb;
     this.validateData();
     this.texture_ = undefined;
@@ -462,17 +495,17 @@ class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     sendCubeTexture(gl, program, this.name, this.offset_, this.texture_);
   }
   
-  buffers(gl: WebGLRenderingContext, viewport: Viewport): TextureBuffers {
+  buffers(gl: WebGLRenderingContext, viewport: Viewport): CubeTextureBuffers {
     if (this.textureBuffers_) return this.textureBuffers_;
-    const fBuffers: Partial<Cube<WebGLFramebuffer>> = {};
-    const rBuffers: Partial<Cube<WebGLRenderbuffer>> = {};
-    const width = viewport[2] - viewport[0];
-    const height = viewport[3] - viewport[1];
-    for (const cf of cubeFaces()) {
-      fBuffers[cf] = gl.createFramebuffer();
-      rBuffers[cf] = renderBuffer(gl, fBuffers[cf], width, height);
-    } 
-    this.textureBuffers_ = {frameBuffer: fBuffers, renderBuffer: rBuffers};
+    const [,, width, height] = viewport;
+    const frameBufferCube = cube(() => gl.createFramebuffer());
+    this.textureBuffers_ = {
+      frameBuffer: frameBufferCube,
+      renderBuffer: cube((cf: CubeFace) =>
+        renderBuffer(gl, frameBufferCube[cf], width, height)),
+    };
+    this.texture_ = cubeTextureFromFramebuffer(
+      gl, this.buffers(gl, viewport).frameBuffer, width, height);
     return this.textureBuffers_;
   }
 }
@@ -484,4 +517,82 @@ export const CubeTextureUniform =
   (name: string, data?: IsOrReturns<Cube<TexImageSource>>) =>
     new CubeTextureImpl(UniformType.TEXTURE, name, data);
 
-// TODO CubeCameraUniform based on NormalMatUniform and CubeTextureUniform
+/**
+ * Tests if a uniform is a cube texture uniform.
+ */
+export const isCubeTextureUniform =
+  (u: TextureUniform<CubeOr<TexImageSource>>): u is CubeTextureImpl =>
+    u instanceof CubeTextureImpl
+
+/**
+ * Implementation of a cube camera uniform.
+ */
+export class CubeCameraUniformImpl extends CubeTextureImpl {
+  private static upVectors: Cube<Vector4> = {
+    posx: [0, -1, 0, 1],
+    negx: [0, -1, 0, 1],
+    posy: [0, 0, 1, 1],
+    negy: [0, 0, 1, 1],
+    posz: [0, -1, 0, 1],
+    negz: [0, -1, 0, 1],
+  };
+  private static atVectors: Cube<Vector4> = {
+    posx: [1, 0, 0, 1],
+    negx: [-1, 0, 0, 1],
+    posy: [0, 1, 0, 1],
+    negy: [0, -1, 0, 1],
+    posz: [0, 0, 1, 1],
+    negz: [0, 0, -1, 1],
+  };
+
+  constructor(
+    name: string,
+    // View matrix in the shader we are rendering to the cube camera.
+    private viewMat_: SequenceUniform,
+    // Normal matrix for the model we are rendering the reflections on.
+    private modelMat_: SequenceUniform,
+    // TODO add perspective matrix.
+  ) {
+    super(UniformType.TEXTURE, name);
+    Uniform.checkType(viewMat_, UniformType.MATRIX);
+    SequenceUniform.checkDimension(viewMat_, 4);
+    Uniform.checkType(modelMat_, UniformType.MATRIX);
+    SequenceUniform.checkDimension(modelMat_, 4);
+  }
+
+  set(dataOrCb: IsOrReturns<Cube<TexImageSource>>): never {
+    throw new Error(
+      'Cube camera uniforms should get their data from a shader');
+  }
+
+  render(renderShader: (cf: CubeFace) => void) {
+    const viewMatDataOrCb = Uniform.dataOrCallback(this.viewMat_);
+    const M = this.modelMat_.data() as Matrix4;
+    const N = transpose(inverse(M));
+
+    // TODO get position from model matrix
+    const pos = [0, 0, 0] as Vector3;
+
+    for (const cf of cubeFaces()) {
+      const at = multiply(M, CubeCameraUniformImpl.atVectors[cf]) as Vector4;
+      const up = multiply(N, CubeCameraUniformImpl.upVectors[cf]) as Vector4;
+      this.viewMat_.set(
+        lookAt(pos, at.slice(0, 3) as Vector3, up.slice(0, 3) as Vector3));
+      renderShader(cf);
+    }
+
+    this.viewMat_.set(viewMatDataOrCb);
+  }
+}
+
+/**
+ * Sends a cube texture to a shader rendered from
+ * a cube camera.
+ */
+export const CubeCameraUniform = (name: string,
+                                  viewMat?: SequenceUniform,
+                                  modelMat?: SequenceUniform) => {
+  if (!viewMat) viewMat = IdentityMat4Uniform('');
+  if (!modelMat) modelMat = IdentityMat4Uniform('');
+  return new CubeCameraUniformImpl(name, viewMat, modelMat);
+};

@@ -27,6 +27,32 @@ export type Vector4 = [number, number, number, number];
 
 type Vector = Vector3 | Vector4;
 
+const normalize = <V extends Vector>(v: V): V => {
+  const len = Math.hypot(...v);
+  if (!len) {
+    throw new Error('Cannot normalize a vector with no length');
+  }
+  return v.map(x => x / len) as V;
+};
+
+/**
+ * Add two vectors.
+ */
+export const add = <V extends Vector>(a: V, b: V): V =>
+  a.map((cur, i) => cur + b[i]) as V;
+
+const subtract = <V extends Vector>(a: V, b: V): V =>
+  a.map((cur, i) => cur - b[i]) as V;
+
+const dot = <V extends Vector>(a: V, b: V): number =>
+  a.reduce((acc, cur, i) => acc + (cur * b[i]), 0);
+
+const cross = (a: Vector3, b: Vector3): Vector3 => [
+  (a[1] * b[2]) - (a[2] * b[1]),
+  (a[2] * b[0]) - (a[0] * b[2]),
+  (a[0] * b[1]) - (a[1] * b[0]),
+];
+
 type Matrix2 = [
   number, number,
   number, number,
@@ -53,7 +79,10 @@ export type Matrix4 = [
  */
 export type Matrix = Matrix2 | Matrix3 | Matrix4;
 
-type Dimension = 2 | 3 | 4;
+/**
+ * Possible dimensions for vectors and matrices.
+ */
+export type Dimension = 2 | 3 | 4;
 
 const matDimension = (arr: Matrix) => Math.sqrt(arr.length) as Dimension;
 
@@ -89,7 +118,6 @@ const multiplyM = <M extends Matrix>(A: M, B: M, d: Dimension): M => {
 const multiplyMv =
   <M extends Matrix, V extends Vector>(A: M, b: V, d: Dimension): V => {
     const result = zeroVector(d) as V;
-    console.log(A, b);
     for (let i = 0; i < d; i++)
     for (let j = 0; j < d; j++) {
       result[i] += A[(i * d) + j] * b[j];
@@ -102,15 +130,14 @@ const multiplyMv =
  */
 export const multiply =
   <M extends Matrix, V extends Vector>(A: M, B: M | V): M | V => {
-    const md = matDimension(A);
-    if (md !== matDimension(B as M)) {
-      const vd = vecDimension(B as V);
-      if (md !== vd) {
-        throw new Error('Cannot multiply matrices with a different dimension');
+    const d = matDimension(A);
+    if (d !== matDimension(B as M)) {
+      if (d !== vecDimension(B as V)) {
+        throw new Error('Cannot multiply, incompatible dimensions');
       }
-      return multiplyMv(A, B as V, md);
+      return multiplyMv(A, B as V, d);
     }
-    return multiplyM(A, B as M, md);
+    return multiplyM(A, B as M, d);
   };
 
 /**
@@ -139,7 +166,7 @@ export const scale = <M extends Matrix>(A: M, ...args: number[]): M => {
   }
   const S = identity(d) as M;
   for (let i = 0; i < d; i++) {
-    if (i === 3 && scale.length === 3) {
+    if (i === 3 && scale.length < 4) {
       S[(d * i) + i] = 1;
     } else {
       S[(d * i) + i] = Number(isNaN(args[i]) ? args[0] : args[i]);
@@ -164,14 +191,6 @@ const quatToRotationMat = (q: Quaternion): Matrix3 => [
   2 * ((q[2] * q[3]) - (q[1] * q[0])),
   1 - (2 * ((q[1] ** 2) + (q[2] ** 2))),
 ];
-
-const normalize = <V extends Vector>(v: V): V => {
-  const len = Math.hypot(...v);
-  if (!len) {
-    throw new Error('Cannot normalize a vector with no length');
-  }
-  return v.map(x => x / len) as V;
-};
 
 const rotate2 = (M: Matrix2, theta: number): Matrix2 => {
   const c = Math.cos(theta);
@@ -210,18 +229,6 @@ export const rotate =
     ];
     return multiply(R4, A as Matrix4) as M;
   };
-
-const subtract = <V extends Vector>(a: V, b: V): V =>
-  a.map((cur, i) => cur - b[i]) as V;
-
-const dot = <V extends Vector>(a: V, b: V): number =>
-  a.reduce((acc, cur, i) => acc + (cur * b[i]), 0);
-
-const cross = (a: Vector3, b: Vector3): Vector3 => [
-  (a[1] * b[2]) - (a[2] * b[1]),
-  (a[2] * b[0]) - (a[0] * b[2]),
-  (a[0] * b[1]) - (a[1] * b[0]),
-];
 
 /**
  * Compute the 4D view matrix for a camera at
@@ -385,6 +392,20 @@ export type Cube<T> = Record<CubeFace, T>;
 
 export type CubeOr<T> = T | Cube<T>;
 
-export const isCube = <T>(obj: any): obj is Cube<T> => {
-  return Boolean(obj) && cubeFaces().every(k => obj[k] !== undefined);
+/**
+ * Test if an object is a Cube.
+ */
+export const isCube = <T>(obj: any): obj is Cube<T> =>
+  Boolean(obj) && cubeFaces().every(k => obj[k] !== undefined);
+
+/**
+ * Build a cube by iterating over each face and calling
+ * a given callback.
+ */
+export const cube = <T>(buildFace: (cf: CubeFace) => T): Cube<T> => {
+  const result: Partial<Cube<T>> = {};
+  for (const cf of cubeFaces()) {
+    result[cf] = buildFace(cf);
+  }
+  return result as Cube<T>;
 };
