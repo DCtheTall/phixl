@@ -361,21 +361,66 @@ export class ViewMatUniformImpl extends SequenceUniform {
 /**
  * Sends a view matrix uniform for the given
  * eye, at, and up vectors.
- * 
- * TODO add some API surface for changing the vectors easily.
  */
 export const ViewMatUniform =
   (name: string, eye: Vector3, at: Vector3, up: Vector3) =>
     new ViewMatUniformImpl(name, eye, at, up);
 
+class PerspectiveMatUniformImpl extends SequenceUniform {
+  constructor(
+    name: string,
+    private fovy_: number,
+    private aspect_: number,
+    private near_: number,
+    private far_: number | null,
+  ) {
+    super(
+      UniformType.MATRIX, name, 4,
+      () => perspective(this.fovy_, this.aspect_, this.near_, this.far_));
+  }
+
+  fovy() {
+    return this.fovy_;
+  }
+
+  aspect() {
+    return this.aspect_;
+  }
+
+  near() {
+    return this.near_;
+  }
+
+  far() {
+    return this.far_;
+  }
+
+  setFovy(fovy: number) {
+    this.fovy_ = fovy;
+  }
+
+  setAspect(aspect: number) {
+    this.aspect_ = aspect;
+  }
+
+  setNear(near: number) {
+    this.near_ = near;
+  }
+
+  setFar(far: number) {
+    this.far_ = far;
+  }
+}
+
 /**
  * Sends a perspective 4D matrix uniform.
  */
-export const PerspectiveMatUniform =
-  (name: string, fovy: number, aspect: number, near: number,
-   far: number | null) =>
-     sequenceUniform(UniformType.MATRIX, 4)(
-       name, perspective(fovy, aspect, near, far));
+export const PerspectiveMatUniform = (name: string,
+                                      fovy: number,
+                                      aspect: number,
+                                      near: number,
+                                      far: number | null = null) =>
+  new PerspectiveMatUniformImpl(name, fovy, aspect, near, far);
 
 /**
  * Possible types to use as texture data sources.
@@ -532,7 +577,7 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
     posx: [0, -1, 0, 1],
     negx: [0, -1, 0, 1],
     posy: [0, 0, 1, 1],
-    negy: [0, 0, 1, 1],
+    negy: [0, 0, -1, 1],
     posz: [0, -1, 0, 1],
     negz: [0, -1, 0, 1],
   };
@@ -547,11 +592,10 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
 
   constructor(
     name: string,
-    // View matrix in the shader we are rendering to the cube camera.
-    private viewMat_: SequenceUniform,
-    // Normal matrix for the model we are rendering the reflections on.
     private modelMat_: SequenceUniform,
-    // TODO add perspective matrix.
+    // View matrix in the shader we are rendering to the cube camera.
+    private viewMat_: ViewMatUniformImpl,
+    private perspectiveMat_: PerspectiveMatUniformImpl,
   ) {
     super(UniformType.TEXTURE, name);
     Uniform.checkType(viewMat_, UniformType.MATRIX);
@@ -566,22 +610,26 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
   }
 
   render(renderShader: (cf: CubeFace) => void) {
+    const fovy = this.perspectiveMat_.fovy();
+    this.perspectiveMat_.setFovy(Math.PI / 2);
+
     const viewMatDataOrCb = Uniform.dataOrCallback(this.viewMat_);
+    // TODO this should just be the rotation matrix.
     const M = this.modelMat_.data() as Matrix4;
-    const N = transpose(inverse(M));
 
     // TODO get position from model matrix
     const pos = [0, 0, 0] as Vector3;
 
     for (const cf of cubeFaces()) {
       const at = multiply(M, CubeCameraUniformImpl.atVectors[cf]) as Vector4;
-      const up = multiply(N, CubeCameraUniformImpl.upVectors[cf]) as Vector4;
+      const up = multiply(M, CubeCameraUniformImpl.upVectors[cf]) as Vector4;
       this.viewMat_.set(
         lookAt(pos, at.slice(0, 3) as Vector3, up.slice(0, 3) as Vector3));
       renderShader(cf);
     }
 
     this.viewMat_.set(viewMatDataOrCb);
+    this.perspectiveMat_.setFovy(fovy);
   }
 }
 
@@ -590,9 +638,12 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
  * a cube camera.
  */
 export const CubeCameraUniform = (name: string,
-                                  viewMat?: SequenceUniform,
-                                  modelMat?: SequenceUniform) => {
-  if (!viewMat) viewMat = IdentityMat4Uniform('');
+                                  modelMat?: SequenceUniform,
+                                  viewMat?: ViewMatUniformImpl,
+                                  perspectiveMat?: PerspectiveMatUniformImpl) => {
+  if (!viewMat) {
+    viewMat = new ViewMatUniformImpl('', [0, 0, 1], [0, 0, 0], [0, 1, 0]);
+  }
   if (!modelMat) modelMat = IdentityMat4Uniform('');
-  return new CubeCameraUniformImpl(name, viewMat, modelMat);
+  return new CubeCameraUniformImpl(name, modelMat, viewMat, perspectiveMat);
 };

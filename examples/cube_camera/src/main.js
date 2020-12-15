@@ -32,16 +32,14 @@ const main = () => {
   const cubeVertices = Vec3Attribute('a_CubeVertex', CUBE_VERTICES)
 
   // Some uniforms can be shared across both shaders.
-  const eyeVec = [0, 0, 20];
+  const eyeVec = [0, 0, 5];
   const viewMat =
     ViewMatUniform(
       'u_ViewMat', eyeVec, /* at */ [0, 0, 0], /* up */ [0, 1, 0]);
   const perspectiveMat =
     PerspectiveMatUniform(
-      'u_PerspectiveMat', /* fovy */ Math.PI / 2, /* aspect */ 1, /* near */ 1,
+      'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1, /* near */ 1,
       /* far */ 1e3);
-
-  const rotate = Rotate(Math.PI / 512, 1, 2, 0);
 
   const skybox =
     Shader(CUBE_N_VERTICES, skyboxVertSrc, skyboxFragSrc, {
@@ -62,9 +60,11 @@ const main = () => {
       ],
     });
 
-  const modelMat = ModelMatUniform('u_ModelMat', {scale: 3});
+  const modelMat = ModelMatUniform('u_ModelMat', {
+    rotate: [3 * Math.PI / 4, 1, 1, 0],
+  });
   const cubeCamera =
-    CubeCameraUniform('u_CubeCamera', viewMat, modelMat);
+    CubeCameraUniform('u_CubeCamera', modelMat, viewMat, perspectiveMat);
 
   const drawCube =
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
@@ -86,13 +86,11 @@ const main = () => {
     });
 
   const animate = () => {
-    rotate(modelMat);
-
     skybox(canvas);
     skybox(cubeCamera);
 
     drawCube(canvas);
-    window.requestAnimationFrame(animate);
+    // window.requestAnimationFrame(animate);
   };
   animate();
 };

@@ -14,7 +14,7 @@ uniform mat4 u_ViewMat;
 
 void main() {
   vec4 p = u_ModelMat * vec4(a_CubeVertex, 1.0);
-  v_ViewDirection = normalize(p.xyz - u_CameraPosition);
+  v_ViewDirection = normalize(u_CameraPosition - p.xyz);
 
   vec4 n = u_NormalMat * vec4(normalize(a_CubeNormal), 1.0);
   v_Normal = normalize(n.xyz);
