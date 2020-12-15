@@ -60,11 +60,11 @@ const main = () => {
       ],
     });
 
-  const modelMat = ModelMatUniform('u_ModelMat', {
-    rotate: [3 * Math.PI / 4, 1, 1, 0],
-  });
+  const rotate = Rotate(Math.PI / 512, 2, 1, 0);
+
+  const modelMat = ModelMatUniform('u_ModelMat');
   const cubeCamera =
-    CubeCameraUniform('u_CubeCamera', modelMat, viewMat, perspectiveMat);
+    CubeCameraUniform('u_CubeCamera', [0, 0, 0], viewMat, perspectiveMat);
 
   const drawCube =
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
@@ -86,11 +86,12 @@ const main = () => {
     });
 
   const animate = () => {
+    rotate(modelMat);
     skybox(canvas);
     skybox(cubeCamera);
 
     drawCube(canvas);
-    // window.requestAnimationFrame(animate);
+    window.requestAnimationFrame(animate);
   };
   animate();
 };

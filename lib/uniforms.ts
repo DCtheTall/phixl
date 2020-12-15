@@ -573,35 +573,35 @@ export const isCubeTextureUniform =
  * Implementation of a cube camera uniform.
  */
 export class CubeCameraUniformImpl extends CubeTextureImpl {
-  private static upVectors: Cube<Vector4> = {
-    posx: [0, -1, 0, 1],
-    negx: [0, -1, 0, 1],
-    posy: [0, 0, 1, 1],
-    negy: [0, 0, -1, 1],
-    posz: [0, -1, 0, 1],
-    negz: [0, -1, 0, 1],
+  private static upVectors: Cube<Vector3> = {
+    posx: [0, -1, 0],
+    negx: [0, -1, 0],
+    posy: [0, 0, 1],
+    negy: [0, 0, 1],
+    posz: [0, -1, 0],
+    negz: [0, -1, 0],
   };
-  private static atVectors: Cube<Vector4> = {
-    posx: [1, 0, 0, 1],
-    negx: [-1, 0, 0, 1],
-    posy: [0, 1, 0, 1],
-    negy: [0, -1, 0, 1],
-    posz: [0, 0, 1, 1],
-    negz: [0, 0, -1, 1],
+  private static atVectors: Cube<Vector3> = {
+    posx: [1, 0, 0],
+    negx: [-1, 0, 0],
+    posy: [0, 1, 0],
+    negy: [0, -1, 0],
+    posz: [0, 0, 1],
+    negz: [0, 0, -1],
   };
 
   constructor(
     name: string,
-    private modelMat_: SequenceUniform,
-    // View matrix in the shader we are rendering to the cube camera.
+    private position_: Vector3,
     private viewMat_: ViewMatUniformImpl,
     private perspectiveMat_: PerspectiveMatUniformImpl,
   ) {
     super(UniformType.TEXTURE, name);
+    if (!isVector3(position_)) {
+      throw new Error('Expected array of 3 arguments as the first argument');
+    }
     Uniform.checkType(viewMat_, UniformType.MATRIX);
     SequenceUniform.checkDimension(viewMat_, 4);
-    Uniform.checkType(modelMat_, UniformType.MATRIX);
-    SequenceUniform.checkDimension(modelMat_, 4);
   }
 
   set(dataOrCb: IsOrReturns<Cube<TexImageSource>>): never {
@@ -614,17 +614,14 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
     this.perspectiveMat_.setFovy(Math.PI / 2);
 
     const viewMatDataOrCb = Uniform.dataOrCallback(this.viewMat_);
-    // TODO this should just be the rotation matrix.
-    const M = this.modelMat_.data() as Matrix4;
 
     // TODO get position from model matrix
     const pos = [0, 0, 0] as Vector3;
 
     for (const cf of cubeFaces()) {
-      const at = multiply(M, CubeCameraUniformImpl.atVectors[cf]) as Vector4;
-      const up = multiply(M, CubeCameraUniformImpl.upVectors[cf]) as Vector4;
-      this.viewMat_.set(
-        lookAt(pos, at.slice(0, 3) as Vector3, up.slice(0, 3) as Vector3));
+      const at = add(CubeCameraUniformImpl.atVectors[cf], this.position_);
+      const up = CubeCameraUniformImpl.upVectors[cf];
+      this.viewMat_.set(lookAt(pos, at, up));
       renderShader(cf);
     }
 
@@ -638,12 +635,12 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
  * a cube camera.
  */
 export const CubeCameraUniform = (name: string,
-                                  modelMat?: SequenceUniform,
+                                  position?: Vector3,
                                   viewMat?: ViewMatUniformImpl,
                                   perspectiveMat?: PerspectiveMatUniformImpl) => {
+  if (!position) position = [0, 0, 0];
   if (!viewMat) {
     viewMat = new ViewMatUniformImpl('', [0, 0, 1], [0, 0, 0], [0, 1, 0]);
   }
-  if (!modelMat) modelMat = IdentityMat4Uniform('');
-  return new CubeCameraUniformImpl(name, modelMat, viewMat, perspectiveMat);
+  return new CubeCameraUniformImpl(name, position, viewMat, perspectiveMat);
 };
