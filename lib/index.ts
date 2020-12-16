@@ -2,7 +2,15 @@
  * @fileoverview Lib's main export script.
  */
 
-export * from './attributes';
+export {
+  FloatAttribute,
+  Mat2Attribute,
+  Mat3Attribute,
+  Mat4Attribute,
+  Vec2Attribute,
+  Vec3Attribute,
+  Vec4Attribute,
+} from './attributes';
 export * from './constants';
 export * from './shader';
 export {

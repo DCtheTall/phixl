@@ -5,20 +5,40 @@
 import {sendAttribute, sendMatrixAttribute} from './gl';
 
 /**
+ * Different types of data attributes can use. For matrix
+ * attributes we use an array of buffers which hold the matrix
+ * values as a sequence of vectors in column-major order.
+ */
+export type AttributeData = BufferSource | BufferSource[];
+
+/**
  * Abstraction for sending data to shaders in attributes.
  */
-export type Attribute = (gl: WebGLRenderingContext,
-                         program: WebGLProgram) => void;
+export class Attribute<Data extends AttributeData> {
+  protected readonly sentToPrograms_ = new WeakSet<WebGLProgram>();
 
-type AttributeBuilder = (name: string, data: BufferSource) => Attribute;
+  constructor(
+    protected readonly name_: string,
+    protected readonly dimension_: number,
+    protected data_: Data,
+  ) {}
+
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+    if (this.sentToPrograms_.has(program)) return;
+    sendAttribute(gl, program, this.name_, this.data_ as BufferSource, this.dimension_);
+    this.sentToPrograms_.add(program);
+  }
+}
+
+type AttributeBuilder = (name: string, data: BufferSource) =>
+  Attribute<BufferSource>;
 
 /**
  * Returns an attribute builder function for the appropriate type.
  */
 const attribute = (dimension: number): AttributeBuilder =>
   (name: string, data: BufferSource) =>
-    (gl: WebGLRenderingContext, program: WebGLProgram) =>
-      sendAttribute(gl, program, name, data, dimension);
+    new Attribute(name, dimension, data);
 
 /**
  * Sends a float attribute to a shader.
@@ -40,12 +60,28 @@ export const Vec3Attribute = attribute(3);
  */
 export const Vec4Attribute = attribute(4);
 
-type MatAttributeBuilder = (name: string, data: BufferSource[]) => Attribute;
+class MatrixAttribute extends Attribute<BufferSource[]> {
+  constructor(
+    name: string,
+    dimension: number,
+    data: BufferSource[],
+  ) {
+    super(name, dimension, data);
+  }
+
+  send(gl: WebGLRenderingContext, program: WebGLProgram) {
+    if (this.sentToPrograms_.has(program)) return;
+    sendMatrixAttribute(gl, program, name, this.data_, this.dimension_);
+    this.sentToPrograms_.add(program);
+  }
+}
+
+type MatAttributeBuilder = (name: string, data: BufferSource[]) =>
+  MatrixAttribute;
 
 const matrixAttribute = (dimension: number): MatAttributeBuilder =>
   (name: string, data: BufferSource[]) =>
-    (gl: WebGLRenderingContext, program: WebGLProgram) =>
-      sendMatrixAttribute(gl, program, name, data, dimension);
+    new MatrixAttribute(name, dimension, data);
 
 /**
  * Sends a 2-dimensional matrix attribute to a shader.

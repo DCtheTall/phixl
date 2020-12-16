@@ -2,7 +2,7 @@
  * @fileoverview Module contains the function for building a Shader.
  */
 
-import {Attribute} from './attributes';
+import {AttributeData, Attribute} from './attributes';
 import {Viewport, glContext, glProgram, glRender, sendIndices} from './gl';
 import {CubeFace} from './math';
 import {
@@ -21,7 +21,7 @@ import {
  * Interface for the options you can supply to Shader.
  */
 export interface ShaderOptions {
-  attributes?: Attribute[];
+  attributes?: Attribute<AttributeData>[];
   uniforms?: Uniform<UniformData>[];
   viewport?: Viewport;
   // GLenum for primitive type to render. See:
@@ -45,15 +45,14 @@ const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
   [0, 0, canvas.width, canvas.height];
 
 const sendDataToShader = (gl: WebGLRenderingContext,
-                          p: WebGLProgram,
+                          prog: WebGLProgram,
                           opts: ShaderOptions) => {
-  // TODO add caching for sending data.
-  if (opts.indices) sendIndices(gl, opts.indices);
+  if (opts.indices) sendIndices(gl, prog, opts.indices);
   for (const attr of opts.attributes) {
-    attr(gl, p);
+    attr.send(gl, prog);
   }
   for (const uniform of opts.uniforms) {
-    uniform.send(gl, p);
+    uniform.send(gl, prog);
   }
 };
 
