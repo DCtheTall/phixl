@@ -7,7 +7,6 @@ const {
   ModelMatUniform,
   NormalMatUniform,
   PerspectiveMatUniform,
-  Rotate,
   Shader,
   Texture2DUniform,
   Vec2Attribute,
@@ -18,21 +17,18 @@ const {
 const CANVAS_SIZE = 600;
 
 const main = () => {
-  const vertexShader = require('./vertex.glsl').default;
-  const fragmentShader = require('./fragment.glsl').default;
-
+  // Get the canvas from the DOM and set its dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
+  // Load the shaders, for this example I am using glslify-loader and raw-loader
+  // to load the files into JS strings at build time.
+  const vertexShader = require('./vertex.glsl').default;
+  const fragmentShader = require('./fragment.glsl').default;
+
   // Create the model matrix uniform object.
-  const modelMat = ModelMatUniform('u_ModelMat', {
-    translate: [0, 0, 5],
-    scale: 15,
-  });
-  
-  // Create the rotation applied to the model matrix after every cube.
-  const rotate = Rotate(Math.PI / 256, 1, 1, 0);
+  const modelMat = ModelMatUniform('u_ModelMat', {scale: 5});
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
@@ -45,7 +41,7 @@ const main = () => {
     uniforms: [
       modelMat,
       ViewMatUniform(
-        'u_ViewMat', /* eye */ [0, 0, 5], /* at */ [0, 0, 0],
+        'u_ViewMat', /* eye */ [0, 0, 30], /* at */ [0, 0, 0],
         /* up */ [0, 1, 0]),
       PerspectiveMatUniform(
         'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1,
@@ -56,10 +52,11 @@ const main = () => {
     ],
   });
 
-  // First render
+  // Render loop.
   const animate = () => {
-    // Apply transformations to uniforms.
-    rotate(modelMat);
+    // Model matrix uniforms have convenience methods for applying
+    // transformations.
+    modelMat.rotate(Math.PI / 256, 2, 1, 0);
 
     // Render the shader on the given target.
     shader(canvas);

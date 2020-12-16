@@ -8,7 +8,6 @@ const {
   ModelMatUniform,
   NormalMatUniform,
   PerspectiveMatUniform,
-  Rotate,
   Shader,
   Vec3Attribute,
   ViewMatUniform,
@@ -18,6 +17,7 @@ const {
 const CANVAS_SIZE = 512;
 
 const main = () => {
+  // Get the canvas from the DOM and set dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
@@ -31,7 +31,7 @@ const main = () => {
   // Both shaders render a cube.
   const cubeVertices = Vec3Attribute('a_CubeVertex', CUBE_VERTICES)
 
-  // Some uniforms can be shared across both shaders.
+  // View and perspective matrix uniforms.
   const eyeVec = [0, 0, 5];
   const viewMat =
     ViewMatUniform(
@@ -60,11 +60,15 @@ const main = () => {
       ],
     });
 
-  const rotate = Rotate(Math.PI / 512, 2, 1, 0);
-
+  // Model matrix for the reflective object.
   const modelMat = ModelMatUniform('u_ModelMat');
+
+  // Cube camera uniform lets you render a shader onto a cube texture.
+  // You must supply the view and perspective matrix uniforms for the
+  // shader you want to render to the cube camera as arguments.
   const cubeCamera =
-    CubeCameraUniform('u_CubeCamera', [0, 0, 0], viewMat, perspectiveMat);
+    CubeCameraUniform(
+      'u_CubeCamera', /* position */ [0, 0, 0], viewMat, perspectiveMat);
 
   const drawCube =
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
@@ -86,8 +90,13 @@ const main = () => {
     });
 
   const animate = () => {
-    rotate(modelMat);
+    // Render the skybox.
     skybox(canvas);
+
+    // Apply a transformation to the cube model.
+    modelMat.rotate(Math.PI / 512, 2, 1, 0);
+
+    // Render the skybox onto the cube camera texture.
     skybox(cubeCamera);
 
     drawCube(canvas);

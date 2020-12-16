@@ -58,7 +58,10 @@ type Matrix2 = [
   number, number,
 ];
 
-type Matrix3 = [
+/**
+ * 3-dimensional matrix as a 9 element array.
+ */
+export type Matrix3 = [
   number, number, number,
   number, number, number,
   number, number, number,
@@ -204,14 +207,19 @@ const rotate2 = (M: Matrix2, theta: number): Matrix2 => {
  */
 export const rotate =
   <M extends Matrix>(A: M, theta: number, ...axis: Vector3): M => {
+    if (isNaN(theta)) {
+      throw new Error('Expected a number as a 2nd argument');
+    }
+
     const d = matDimension(A);
     if (d === 2) return rotate2(A as Matrix2, theta) as M;
-    if (axis.length < 3) {
-      throw new Error(
-        `Expected 3 arguments for the axis of rotation, got: ${axis.length}`);
-    }
+
     axis = axis.slice(0, 3) as Vector3;
+    if (!isVector3(axis)) {
+      throw new Error('Expected numeric 3rd, 4th, and 5th argument');
+    }
     axis = normalize(axis);
+
     const s = Math.sin(theta / 2);
     const q: Quaternion = [
       Math.cos(theta / 2),
@@ -221,6 +229,7 @@ export const rotate =
     ];
     const R = quatToRotationMat(q);
     if (d === 3) return multiply(R, A as Matrix3) as M;
+
     const R4: Matrix4 = [
       R[0], R[1], R[2], 0,
       R[3], R[4], R[5], 0,

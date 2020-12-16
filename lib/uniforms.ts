@@ -1,7 +1,5 @@
 /**
  * @fileoverview Shader uniforms module.
- * 
- * TODO struct uniform, array uniforms
  */
 
 import {
@@ -26,6 +24,7 @@ import {
   CubeOr,
   Dimension,
   Matrix,
+  Matrix3,
   Matrix4,
   Vector3,
   Vector4,
@@ -215,97 +214,117 @@ export const Mat3Uniform = sequenceUniform(UniformType.MATRIX, 3);
  */
 export const Mat4Uniform = sequenceUniform(UniformType.MATRIX, 4);
 
-const identityMatUniform = (dimension: Dimension): SequenceUniformBuilder =>
-  (name: string) =>
-    sequenceUniform(UniformType.MATRIX, dimension)(name, identity(dimension));
-
-/**
- * Sends a 2-dimensional identity matrix to a shader.
- */
-export const IdentityMat2Uniform = identityMatUniform(2);
-
-/**
- * Sends a 3-dimensional identity matrix to a shader.
- */
-export const IdentityMat3Uniform = identityMatUniform(3);
-
-/**
- * Sends a 4-dimensional identity matrix to a shader.
- */
-export const IdentityMat4Uniform = identityMatUniform(4);
-
-/**
- * Create a transform on a Mat4Uniform that applies a 3D translation
- * to a 4D matrix.
- */
-export const Translate = (x: number, y: number, z: number) =>
-  (u: SequenceUniform): SequenceUniform => {
-    Uniform.checkType(u, UniformType.MATRIX);
-    SequenceUniform.checkDimension(u, 4);
-    return u.set(translate(u.data() as Matrix4, x, y, z));
-  };
-
-/**
- * Create a transform on a Mat4Uniform that applies a scale
- * transformation. Takes 1, 3 or 4 arguments.
- */
-export const Scale = (...args: number[]) => (u: SequenceUniform) => {
-  Uniform.checkType(u, UniformType.MATRIX);
-  return u.set(scale(u.data() as Matrix4, ...args));
-};
-
-/**
- * Create a transform on a Mat4Uniform that applies a
- * 3D rotation of theta radians around the given axis.
- */
-export const Rotate = (theta: number, ...axis: Vector3) =>
-  (u: SequenceUniform) => {
-    Uniform.checkType(u, UniformType.MATRIX);
-    return u.set(rotate(u.data() as Matrix, theta, ...axis));
-  };
-
 interface ModelMatOptions {
   scale?: number | Vector3;
   rotate?: Vector4,
   translate?: Vector3,
 }
 
+class ModelMatUniformImpl extends SequenceUniform {
+  private scaleMatrix_: Matrix4;
+  private rotationMatrix_: Matrix3;
+  private translation_: Vector3;
+
+  constructor(name: string, opts: ModelMatOptions) {
+    super(UniformType.MATRIX, name, 4, () => this.matrix());
+    this.scaleMatrix_ = identity(4) as Matrix4;
+    if (opts.scale) {
+      if (typeof opts.scale === 'number') {
+        this.scaleMatrix_ = scale(this.scaleMatrix_, opts.scale);
+      } else {
+        this.scaleMatrix_ = scale(this.scaleMatrix_, ...opts.scale);
+      }
+    }
+    this.rotationMatrix_ = identity(3) as Matrix3;
+    if (opts.rotate) {
+      this.rotationMatrix_ = rotate(this.rotationMatrix_, ...opts.rotate);
+    }
+    this.translation_ = [0, 0, 0];
+    if (opts.translate) this.translation_ = opts.translate;
+  }
+
+  scaleMatrix(): Matrix4 {
+    return [...this.scaleMatrix_];
+  }
+
+  rotationMatrix(): Matrix3 {
+    return [...this.rotationMatrix_];
+  }
+
+  private rotationMatrix4_(): Matrix4 {
+    const R = this.rotationMatrix_;
+    return [
+      R[0], R[1], R[2], 0,
+      R[3], R[4], R[5], 0,
+      R[6], R[7], R[8], 0,
+      0, 0, 0, 1,
+    ];
+  }
+
+  translation(): Vector3 {
+    return [...this.translation_];
+  }
+
+  matrix(): Matrix4 {
+    return translate(
+      multiply(this.rotationMatrix4_(), this.scaleMatrix()) as Matrix4,
+      ...this.translation_);
+  }
+  
+  scale(...args: number[]) {
+    this.scaleMatrix_ = scale(this.scaleMatrix_, ...args);
+  }
+
+  setScale(...args: number[]) {
+    this.scaleMatrix_ = scale(identity(4) as Matrix4, ...args);
+  }
+
+  rotate(theta: number, ...axis: Vector3) {
+    this.rotationMatrix_ = rotate(this.rotationMatrix_, theta, ...axis);
+  }
+
+  setRotate(theta: number, ...axis: Vector3) {
+    this.rotationMatrix_ = rotate(identity(3) as Matrix3, theta, ...axis);
+  }
+
+  translate(...args: Vector3) {
+    args = args.slice(0, 3) as Vector3;
+    if (!isVector3(args)) {
+      throw new Error('Expected 3 numeric arguments');
+    }
+    this.translation_ = add(this.translation_, args);
+  }
+
+  setTranslation(...args: Vector3) {
+    args = args.slice(0, 3) as Vector3;
+    if (!isVector3(args)) {
+      throw new Error('Expected 3 numeric arguments');
+    }
+    this.translation_ = args;
+  }
+}
+
 /**
  * Sends a model matrix to a shader as a uniform that applies
  * a scale, rotation, and translation (in that order).
- * 
- * TODO extract rotation matrix for normal matrix.
  */
-export const ModelMatUniform = (name: string, opts: ModelMatOptions = {}): SequenceUniform => {
-  let u = IdentityMat4Uniform(name) as SequenceUniform;
-  if (opts.scale) {
-    if (typeof opts.scale === 'number') {
-      u = Scale(opts.scale)(u);
-    } else {
-      u = Scale(...opts.scale)(u);
-    }
-  }
-  if (opts.translate) u = Translate(...opts.translate)(u);
-  if (opts.rotate) u = Rotate(...opts.rotate)(u);
-  return u;
-};
+export const ModelMatUniform =
+  (name: string, opts: ModelMatOptions = {}): ModelMatUniformImpl =>
+    new ModelMatUniformImpl(name, opts);
+  
 
 /**
  * Sends the resulting normal matrix for a given
  * model matrix to a shader.
  * 
- * If M is the value of the model matrix uniform, then
- * the normal matrix uniform will receive
- * 
- * TODO this should be the inverse of just the rotation part of the transformation.
+ * The normal matrix is the inverse transpose of
+ * the rotation component of the model matrix.
  */
-export const NormalMatUniform = (name: string, modelMat: SequenceUniform) => {
-  Uniform.checkType(modelMat, UniformType.MATRIX);
-  SequenceUniform.checkDimension(modelMat, 4);
-  return sequenceUniform(UniformType.MATRIX, 4)(
-    name,
-    () => transpose(inverse(modelMat.data() as Matrix4)),
-  ) as SequenceUniform;
+export const NormalMatUniform = (name: string, modelMat: ModelMatUniformImpl) => {
+  return sequenceUniform(
+    UniformType.MATRIX,
+    3,
+  )(name, () => modelMat.rotationMatrix()) as SequenceUniform;
 };
 
 /**
@@ -615,13 +634,10 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
 
     const viewMatDataOrCb = Uniform.dataOrCallback(this.viewMat_);
 
-    // TODO get position from model matrix
-    const pos = [0, 0, 0] as Vector3;
-
     for (const cf of cubeFaces()) {
       const at = add(CubeCameraUniformImpl.atVectors[cf], this.position_);
       const up = CubeCameraUniformImpl.upVectors[cf];
-      this.viewMat_.set(lookAt(pos, at, up));
+      this.viewMat_.set(lookAt(this.position_, at, up));
       renderShader(cf);
     }
 

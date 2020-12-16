@@ -19,6 +19,5 @@ void main() {
   color += diffuse * kDiffuseLight;
   color += pow(diffuse, kSpecularExp) * kSpecularLight;
   color *= texture2D(u_Texture, v_TexCoord).xyz;
-
   gl_FragColor = vec4(color, 1.0);
 }

@@ -11,13 +11,12 @@ varying vec3 v_Normal;
 uniform mat4 u_ModelMat;
 uniform mat4 u_ViewMat;
 uniform mat4 u_PerspectiveMat;
-uniform mat4 u_NormalMat;
+uniform mat3 u_NormalMat;
 
 void main() {
   v_TexCoord = a_TexCoord;
   vec4 pos = u_ModelMat * vec4(a_Position, 1.0);
   v_Position = pos.xyz;
-  vec4 norm = u_NormalMat * vec4(a_Normal, 1.0);
-  v_Normal = norm.xyz;
+  v_Normal = u_NormalMat * normalize(a_Normal);
   gl_Position = u_PerspectiveMat * u_ViewMat * pos;
 }

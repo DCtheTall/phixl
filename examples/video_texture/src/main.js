@@ -7,7 +7,6 @@ const {
   ModelMatUniform,
   NormalMatUniform,
   PerspectiveMatUniform,
-  Rotate,
   Shader,
   Texture2DUniform,
   Vec2Attribute,
@@ -30,11 +29,8 @@ function main() {
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {
     translate: [0, 0, 5],
-    scale: 15,
+    scale: 2,
   });
-  
-  // Create the rotation applied to the model matrix after every cube.
-  const rotate = Rotate(Math.PI / 512, 1, 1, 0);
 
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
@@ -47,7 +43,7 @@ function main() {
     uniforms: [
       modelMat,
       ViewMatUniform(
-        'u_ViewMat', /* eye */ [0, 0, 5], /* at */ [0, 0, 0],
+        'u_ViewMat', /* eye */ [0, 0, -5], /* at */ [0, 0, 0],
         /* up */ [0, 1, 0]),
       PerspectiveMatUniform(
         'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1,
@@ -60,8 +56,8 @@ function main() {
 
   // First render
   const animate = () => {
-    // Apply transformations to uniforms.
-    rotate(modelMat);
+    // Apply a rotation to the cube's model matrix.
+    modelMat.rotate(Math.PI / 512, 2, 1, 0);
 
     // Render the shader on the given target.
     shader(canvas);
