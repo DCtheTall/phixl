@@ -60,6 +60,8 @@ const main = () => {
       ],
     });
 
+  // TODO add orbiting objects.
+
   // Model matrix for the reflective object.
   const modelMat = ModelMatUniform('u_ModelMat');
 

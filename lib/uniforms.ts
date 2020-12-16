@@ -22,8 +22,6 @@ import {
   Cube,
   CubeFace,
   CubeOr,
-  Dimension,
-  Matrix,
   Matrix3,
   Matrix4,
   Vector3,
@@ -461,9 +459,9 @@ export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
   protected texture_: WebGLTexture;
   protected textureBuffers_: TextureBuffers;
 
-  protected shouldBuildTexture_() {
-    return !this.textureBuffers_ // Not a texture whose source is a framebuffer.
-      && this.dataOrCb_ // Has data. TODO caching?
+  protected shouldBuildTextureFromData_() {
+    return (!this.textureBuffers_) // If this object exists then 
+      && (!!this.dataOrCb_)
       && (!this.texture_ || isVideo(this.data()));
   }
 
@@ -495,11 +493,15 @@ export const isTextureUniform =
 export class Texture2DUniformImpl extends TextureUniform<TexImageSource> {
   protected textureBuffers_: Texture2DBuffers;
 
+  constructor(name: string, dataOrCb?: IsOrReturns<TexImageSource>) {
+    super(UniformType.TEXTURE, name, dataOrCb);
+  }
+
   prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.offset_)) {
       this.offset_ = newTextureOffset(program, this.name);
     }
-    if (this.shouldBuildTexture_()) {
+    if (this.shouldBuildTextureFromData_()) {
       this.texture_ = texture2d(gl, this.data());
     }
   }
@@ -526,7 +528,7 @@ export class Texture2DUniformImpl extends TextureUniform<TexImageSource> {
  */
 export const Texture2DUniform =
   (name: string, data?: IsOrReturns<TexImageSource>) =>
-    new Texture2DUniformImpl(UniformType.TEXTURE, name, data);
+    new Texture2DUniformImpl(name, data);
 
 export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
   protected textureBuffers_: CubeTextureBuffers;
@@ -550,7 +552,7 @@ export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     if (isNaN(this.offset_)) {
       this.offset_ = newTextureOffset(program, this.name);
     }
-    if (this.shouldBuildTexture_()) {
+    if (this.shouldBuildTextureFromData_()) {
       this.texture_ = cubeTexure(gl, this.data());
     }
   }
@@ -565,8 +567,9 @@ export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     const frameBufferCube = cube(() => gl.createFramebuffer());
     this.textureBuffers_ = {
       frameBuffer: frameBufferCube,
-      renderBuffer: cube((cf: CubeFace) =>
-        renderBuffer(gl, frameBufferCube[cf], width, height)),
+      renderBuffer: cube(
+        (cf: CubeFace) =>
+          renderBuffer(gl, frameBufferCube[cf], width, height)),
     };
     this.texture_ = cubeTextureFromFramebuffer(
       gl, this.buffers(gl, viewport).frameBuffer, width, height);
