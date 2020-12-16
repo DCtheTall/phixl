@@ -70,7 +70,7 @@ const main = () => {
   // shader you want to render to the cube camera as arguments.
   const cubeCamera =
     CubeCameraUniform(
-      'u_CubeCamera', /* position */ [0, 0, 0], viewMat, perspectiveMat);
+      'u_Skybox', /* position */ [0, 0, 0], viewMat, perspectiveMat);
 
   const drawCube =
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {

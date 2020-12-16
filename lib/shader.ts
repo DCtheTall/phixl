@@ -109,7 +109,7 @@ const renderCubeTexture = (canvas: HTMLCanvasElement,
     });
     return;
   }
-  // TODO render to cube texture without cube camera
+  // TODO render to cube texture without cube camera.
   throw new Error('Not implemented');
 };
 
