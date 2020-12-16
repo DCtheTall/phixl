@@ -32,7 +32,6 @@ import {
   cube,
   cubeFaces,
   identity,
-  inverse,
   isCube,
   isVector3,
   lookAt,
@@ -41,7 +40,6 @@ import {
   rotate,
   scale,
   translate,
-  transpose,
 } from './math';
 
 type IsOrReturns<T> = T | (() => T);
@@ -319,6 +317,8 @@ export const ModelMatUniform =
  * 
  * The normal matrix is the inverse transpose of
  * the rotation component of the model matrix.
+ * Since for any rotation matrix R, it's inverse is
+ * R^T.
  */
 export const NormalMatUniform = (name: string, modelMat: ModelMatUniformImpl) => {
   return sequenceUniform(
