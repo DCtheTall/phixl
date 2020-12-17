@@ -59,7 +59,23 @@ const sendDataToShader = (gl: WebGLRenderingContext,
 type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 
 const pendingTextureRenders =
-  new WeakMap<TextureUniform<TextureData>, TextureRenderFunc>();
+  new WeakMap<TextureUniform<TextureData>, TextureRenderFunc[]>();
+
+const renderPendingTextures = (gl: WebGLRenderingContext,
+                               prog: WebGLProgram,
+                               canvas: HTMLCanvasElement,
+                               uniforms: Uniform<UniformData>[]) => {
+  for (const uniform of uniforms) {
+    if (!isTextureUniform(uniform)) continue;
+    uniform.prepare(gl, prog);
+    const renderFuncs = pendingTextureRenders.get(uniform);
+    if (!renderFuncs) continue;
+    pendingTextureRenders.delete(uniform);
+    for (const func of renderFuncs) {
+      func(canvas);
+    }
+  }
+};
 
 const renderShader = (canvas: HTMLCanvasElement,
                       nVertices: number,
@@ -71,16 +87,7 @@ const renderShader = (canvas: HTMLCanvasElement,
   const gl = glContext(canvas);
   const prog = glProgram(gl, vertexSrc, fragmentSrc);
 
-  // Render any textures that this shader depends on.
-  // TODO investigate cycle detection.
-  for (let uniform of opts.uniforms) {
-    if (!isTextureUniform(uniform)) continue;
-    uniform.prepare(gl, prog);
-    const renderTexture = pendingTextureRenders.get(uniform);
-    if (!renderTexture) continue;
-    pendingTextureRenders.delete(uniform);
-    renderTexture(canvas);
-  }
+  renderPendingTextures(gl, prog, canvas, opts.uniforms);
 
   gl.useProgram(prog);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
@@ -143,6 +150,16 @@ const createTextureRenderFunc = (target: TextureUniform<TextureData>,
       fragmentSrc);
   };
 
+const addTextureRenderFunc = (target: TextureUniform<TextureData>,
+                              func: TextureRenderFunc) => {
+  let funcs = pendingTextureRenders.get(target);
+  if (!funcs) {
+    funcs = [];
+    pendingTextureRenders.set(target, funcs);
+  }
+  funcs.push(func);
+};
+
 type RenderTarget = HTMLCanvasElement | TextureUniform<TextureData>;
 
 type ShaderFunc = (target: RenderTarget) => RenderTarget;
@@ -160,10 +177,9 @@ export const Shader = (nVertices: number,
         target, nVertices, vertexSrc, fragmentSrc, null, null, opts);
       return target;
     } else if (isTextureUniform(target)) {
-      pendingTextureRenders.set(
+      addTextureRenderFunc(
         target,
-        createTextureRenderFunc(
-          target, nVertices, vertexSrc, fragmentSrc, opts)); 
+        createTextureRenderFunc(target, nVertices, vertexSrc, fragmentSrc, opts));
       return target;
     }
     throw new Error(

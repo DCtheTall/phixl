@@ -10,6 +10,7 @@
   "author": "",
   "dependencies": {
     "express": "^4.17.1",
+    "gl-matrix": "^3.3.0",
     "glslify-loader": "^2.0.0",
     "morgan": "^1.10.0",
     "pug": "^3.0.0",

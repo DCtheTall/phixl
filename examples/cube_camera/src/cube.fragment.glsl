@@ -6,7 +6,7 @@ varying vec3 v_ViewDirection;
 
 uniform samplerCube u_Skybox;
 
-const vec3 kLightPos = vec3(0.0, 80.0, 0.0);
+const vec3 kLightPos = vec3(0.0, 200.0, 0.0);
 const vec3 kAmbientLight = vec3(0.6, 0.6, 0.6);
 const vec3 kDiffuseLight = vec3(1.0, 1.0, 0.8);
 const float kSpecularExp = 300.0;

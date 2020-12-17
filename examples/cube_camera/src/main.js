@@ -13,8 +13,60 @@ const {
   ViewMatUniform,
   Vec3Uniform,
 } = require('../../../dist');
+const {mat4, vec3, vec4} = require('gl-matrix');
 
 const CANVAS_SIZE = 512;
+const N_ORBITING_CUBES = 6;
+const ORBIT_RADIUS = 40;
+
+const randomVec3 = () =>
+  vec3.fromValues(Math.random(), Math.random(), Math.random());
+
+const rotateVector = (v, theta, axis) => {
+    const R = mat4.fromRotation(mat4.create(), theta, axis);
+    const v4 = vec4.transformMat4(
+      vec4.create(), vec4.fromValues(v[0], v[1], v[2], 1), R);
+    return vec3.fromValues(v4[0], v4[1], v4[2]);
+  }
+
+const initializeOrbits = (modelMatrices) => {
+  if (modelMatrices.length !== N_ORBITING_CUBES) {
+    throw new Error('Incorrect number of model matrices');
+  }
+
+  const radialVecs = [
+    vec3.fromValues(-ORBIT_RADIUS, 0, 0),
+    vec3.fromValues(ORBIT_RADIUS, 0, 0),
+    vec3.fromValues(0, -ORBIT_RADIUS, 0),
+    vec3.fromValues(0, ORBIT_RADIUS, 0),
+    vec3.fromValues(0, 0, ORBIT_RADIUS),
+    vec3.fromValues(0, 0, -ORBIT_RADIUS),
+  ];
+  if (radialVecs.length !== N_ORBITING_CUBES) {
+    throw new Error('Incorrect nmber of radial vectors');
+  }
+
+  const orbitAxisVecs = radialVecs.map((radial) => {
+    const random = randomVec3();
+    return vec3.normalize(
+      vec3.create(), vec3.cross(vec3.create(), radial, random));
+  });
+  const rotationAxisVecs = orbitAxisVecs.map(
+    () => vec3.normalize(vec3.create(), randomVec3()));
+  const thetas = rotationAxisVecs.map(() => Math.random() * Math.PI / 128);
+
+  let t = 0;
+
+  return () => {
+    t++;
+    for (let i = 0; i < N_ORBITING_CUBES; i++) {
+      modelMatrices[i].setTranslation(
+        ...rotateVector(radialVecs[i], thetas[i] * t, orbitAxisVecs[i]));
+      const axis = rotationAxisVecs[i];
+      modelMatrices[i].rotate(thetas[i], axis[0], axis[1], axis[2]);
+    }
+  };
+};
 
 const main = () => {
   // Get the canvas from the DOM and set dimensions.
@@ -32,7 +84,7 @@ const main = () => {
   const cubeVertices = Vec3Attribute('a_CubeVertex', CUBE_VERTICES)
 
   // View and perspective matrix uniforms.
-  const eyeVec = [0, 0, 5];
+  const eyeVec = [0, 0, 30];
   const viewMat =
     ViewMatUniform(
       'u_ViewMat', eyeVec, /* at */ [0, 0, 0], /* up */ [0, 1, 0]);
@@ -40,6 +92,15 @@ const main = () => {
     PerspectiveMatUniform(
       'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1, /* near */ 1,
       /* far */ 1e3);
+
+  const skyboxCubeTexture = CubeTextureUniform('u_Skybox', {
+    posx: document.getElementById('skybox-right'),
+    negx: document.getElementById('skybox-left'),
+    posy: document.getElementById('skybox-top'),
+    negy: document.getElementById('skybox-bottom'),
+    posz: document.getElementById('skybox-front'),
+    negz: document.getElementById('skybox-back'),
+  });
 
   const skybox =
     Shader(CUBE_N_VERTICES, skyboxVertSrc, skyboxFragSrc, {
@@ -49,30 +110,11 @@ const main = () => {
       uniforms: [
         viewMat,
         perspectiveMat,
-        CubeTextureUniform('u_Skybox', {
-          posx: document.getElementById('skybox-right'),
-          negx: document.getElementById('skybox-left'),
-          posy: document.getElementById('skybox-top'),
-          negy: document.getElementById('skybox-bottom'),
-          posz: document.getElementById('skybox-front'),
-          negz: document.getElementById('skybox-back'),
-        }),
+        skyboxCubeTexture,
       ],
     });
 
-  // TODO add orbiting objects.
-
-  // Model matrix for the reflective object.
-  const modelMat = ModelMatUniform('u_ModelMat');
-
-  // Cube camera uniform lets you render a shader onto a cube texture.
-  // You must supply the view and perspective matrix uniforms for the
-  // shader you want to render to the cube camera as arguments.
-  const cubeCamera =
-    CubeCameraUniform(
-      'u_Skybox', /* position */ [0, 0, 0], viewMat, perspectiveMat);
-
-  const drawCube =
+  const cubeShader = (modelMatUniform, cubeTextureUniform) =>
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
       clear: false,
       mode: WebGLRenderingContext.TRIANGLES,
@@ -82,26 +124,65 @@ const main = () => {
         Vec3Attribute('a_CubeNormal', CUBE_NORMALS),
       ],
       uniforms: [
-        modelMat,
+        modelMatUniform,
         viewMat,
         perspectiveMat,
-        NormalMatUniform('u_NormalMat', modelMat),
-        cubeCamera,
+        NormalMatUniform('u_NormalMat', modelMatUniform),
+        cubeTextureUniform,
         Vec3Uniform('u_CameraPosition', eyeVec),
       ],
     });
+
+  // Create model matrix uniforms for each orbiting cube.
+  const orbitCubesModelMatrices = [...Array(N_ORBITING_CUBES)].map(
+    () => ModelMatUniform('u_ModelMat', {scale: 2}));
+
+  // Create a callback which ticks the oribiting cubes' animation.
+  const tickOrbit = initializeOrbits(orbitCubesModelMatrices);
+
+  // Create the shaders for each orbiting cube.
+  const orbitCubeShaders = orbitCubesModelMatrices.map(
+    modelMat => cubeShader(modelMat, skyboxCubeTexture));
+
+  // Model matrix for the reflective object.
+  const reflectiveModelMat = ModelMatUniform('u_ModelMat', {scale: 5});
+
+  // Cube camera uniform lets you render a shader onto a cube texture.
+  // You must supply the view and perspective matrix uniforms for the
+  // shader you want to render to the cube camera as arguments.
+  const cubeCamera =
+    CubeCameraUniform(
+      'u_Skybox', /* position */ [0, 0, 0], viewMat, perspectiveMat);
+
+  const reflectiveCube = cubeShader(reflectiveModelMat, cubeCamera);
 
   const animate = () => {
     // Render the skybox.
     skybox(canvas);
 
+    // Tick the orbiting cube's animation.
+    tickOrbit();
+
+    // Render the orbiting cubes.
+    for (const shader of orbitCubeShaders) {
+      shader(canvas);
+    }
+
     // Apply a transformation to the cube model.
-    modelMat.rotate(Math.PI / 512, 2, 1, 0);
+    reflectiveModelMat.rotate(Math.PI / 1024, 2, 1, 0);
 
     // Render the skybox onto the cube camera texture.
     skybox(cubeCamera);
 
-    drawCube(canvas);
+    // Render the orbiting cubes onto the cube camera.
+    for (const shader of orbitCubeShaders) {
+      shader(cubeCamera);
+    }
+
+    // Render the reflective cube to the canvas.
+    reflectiveCube(canvas);
+
+    // Call "animate" again on the next animation frame.
     window.requestAnimationFrame(animate);
   };
   animate();

@@ -79,7 +79,7 @@ export const glProgram = (gl: WebGLRenderingContext,
   return result;
 };
 
-const programToLastSentData = new WeakMap<WebGLProgram, BufferSource>();
+const progToLastSentIndicesMap = new WeakMap<WebGLProgram, BufferSource>();
 
 /**
  * Send indices to the element array buffer.
@@ -87,10 +87,10 @@ const programToLastSentData = new WeakMap<WebGLProgram, BufferSource>();
 export const sendIndices = (gl: WebGLRenderingContext,
                             program: WebGLProgram,
                             indices: BufferSource) => {
-  if (programToLastSentData.get(program) === indices) return;
+  if (progToLastSentIndicesMap.get(program) === indices) return;
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-  programToLastSentData.set(program, indices);
+  progToLastSentIndicesMap.set(program, indices);
 };
 
 /**
