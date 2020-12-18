@@ -16,15 +16,19 @@ const {
 
 const CANVAS_SIZE = 600;
 
+// Get the video from the DOM.
 const video = document.getElementById('texture');
 
-function main() {
-  const vertexShader = require('./vertex.glsl').default;
-  const fragmentShader = require('./fragment.glsl').default;
-
+const main = () => {
+  // Get the canvas from the DOM and set its dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
+
+  // Load the shaders, for this example I am using glslify-loader and raw-loader
+  // to load the files into JS strings at build time.
+  const vertexShader = require('./vertex.glsl').default;
+  const fragmentShader = require('./fragment.glsl').default;
 
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {
@@ -32,6 +36,9 @@ function main() {
     scale: 2,
   });
 
+  // Build the shader that we will use to render the cube.
+  // Shader returns a function which will render the shader to a
+  // HTMLCanvasElement.
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
     indices: CUBE_INDICES,
@@ -50,11 +57,12 @@ function main() {
         /* near */ 1, /* far */ 1e6),
       // Normal matrix is automatically updated when model matrix is updated.
       NormalMatUniform('u_NormalMat', modelMat),
+      // Send the video to the shader as a Texture2DUniform.
       Texture2DUniform('u_Texture', video),
     ],
   });
 
-  // First render
+  // Render loop.
   const animate = () => {
     // Apply a rotation to the cube's model matrix.
     modelMat.rotate(Math.PI / 512, 2, 1, 0);
@@ -66,6 +74,7 @@ function main() {
     window.requestAnimationFrame(animate);
   };
   
+  // Start the render loop.
   animate();
 }
 

@@ -30,6 +30,9 @@ const main = () => {
   // Create the model matrix uniform object.
   const modelMat = ModelMatUniform('u_ModelMat', {scale: 5});
 
+  // Build the shader that we will use to render the cube.
+  // Shader returns a function which will render the shader to a
+  // HTMLCanvasElement.
   const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
     indices: CUBE_INDICES,
@@ -64,7 +67,8 @@ const main = () => {
     // Call animate again on next frame.
     window.requestAnimationFrame(animate);
   };
-  
+
+  // Start render loop.
   animate();
 };
 
