@@ -14,7 +14,7 @@ const {
   ViewMatUniform,
 } = require('../../../dist');
 
-const CANVAS_SIZE = 600;
+const CANVAS_SIZE = 512;
 
 const main = () => {
   // Get the canvas from the DOM and set its dimensions.

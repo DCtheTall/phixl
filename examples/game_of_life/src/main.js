@@ -8,7 +8,7 @@ const {
   Vec2Uniform,
 } = require('../../../dist');
 
-const CANVAS_SIZE = 600;
+const CANVAS_SIZE = 512;
 const BLACK = '#000';
 const WHITE = '#fff';
 
@@ -29,6 +29,7 @@ const noisyCanvas = () => {
 };
 
 const main = () => {
+  // Get the canvas from the DOM and set its dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
@@ -44,6 +45,10 @@ const main = () => {
     Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),
   ];
 
+  // Generate 2 textures to render the Game of Life cells to.
+  // When we iterate the Game of Life algorithm, we use one
+  // texture to store the previous board and render the next
+  // board to the other texture.
   const cellsA = Texture2DUniform('u_CurrentCells', noisyCanvas());
   const cellsB = Texture2DUniform('u_CurrentCells');
 
@@ -73,6 +78,9 @@ const main = () => {
   const canvasShaderA = canvasShader(cellsA);
   const canvasShaderB = canvasShader(cellsB);
 
+  // Render loop.
+  // Each frame we alternate which texture we use as the source
+  // and destination for each iteration of the Game of Life algorithm.
   let flag = false;
   const animate = () => {
     flag = !flag;
@@ -87,7 +95,9 @@ const main = () => {
     // // Recursively call animate on next paint.
     window.requestAnimationFrame(animate);
   };
+
+  // First render.
   animate();
-}
+};
 
 document.body.onload = main;

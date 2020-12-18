@@ -14,7 +14,7 @@ const {
   ViewMatUniform,
 } = require('../../../dist');
 
-const CANVAS_SIZE = 600;
+const CANVAS_SIZE = 512;
 
 // Get the video from the DOM.
 const video = document.getElementById('texture');
@@ -76,7 +76,7 @@ const main = () => {
   
   // Start the render loop.
   animate();
-}
+};
 
 video.play();
 video.oncanplaythrough = main;
