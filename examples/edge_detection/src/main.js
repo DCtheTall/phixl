@@ -11,11 +11,13 @@ const {
 const CANVAS_SIZE = 600;
 
 const renderExample = (video) => {
+  // Get the canvas from the DOM.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
-  // Load each shader source as a JS string.
+  // Load the shaders, for this example I am using glslify-loader and raw-loader
+  // to load the files into JS strings at build time.
   const vertShaderSrc = require('./vertex.glsl').default;
   const fragShaderSrc = require('./fragment.glsl').default;
 
@@ -43,10 +45,17 @@ const renderExample = (video) => {
 };
 
 const main = async () => {
+  // Get the video element from the DOM.
   const video = document.getElementById('video');
+
+  // Get the webcam's video stream.
   const localStream =
     await navigator.mediaDevices.getUserMedia({video: true});
+
+  // Set the video's source to the webcam's video stream.
   video.srcObject = localStream;
+
+  // Play the video and then render the edge detection algorithm.
   video.play();
   video.onplaying = () => renderExample(video);
 }

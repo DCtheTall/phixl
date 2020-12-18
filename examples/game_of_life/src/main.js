@@ -34,7 +34,10 @@ const main = () => {
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
-  // Load each shader source as a JS string.
+  // Load the shaders, for this example I am using glslify-loader and raw-loader
+  // to load the files into JS strings at build time.
+  // We load two different fragment shaders, one is for iterating the game of life
+  // algorithm, the other renders the result texture to a canvas.
   const vertShaderSrc = require('./vertex.glsl').default;
   const cellFragShaderSrc = require('./cells.fragment.glsl').default;
   const canvasFragShaderSrc = require('./canvas.fragment.glsl').default;
