@@ -14,10 +14,13 @@ const {
   Vec3Uniform,
 } = require('../../../dist');
 const {mat4, vec3, vec4} = require('gl-matrix');
+const {Mesh} = require('webgl-obj-loader');
 
 const CANVAS_SIZE = 512;
 const N_ORBITING_CUBES = 6;
 const ORBIT_RADIUS = 40;
+
+const TEAPOT_OBJ_URL = '/teapot.obj';
 
 const randomVec3 = () =>
   vec3.fromValues(Math.random(), Math.random(), Math.random());
@@ -53,7 +56,7 @@ const initializeOrbits = (modelMatrices) => {
   });
   const rotationAxisVecs = orbitAxisVecs.map(
     () => vec3.normalize(vec3.create(), randomVec3()));
-  const thetas = rotationAxisVecs.map(() => Math.random() * Math.PI / 128);
+  const thetas = rotationAxisVecs.map(() => Math.random() * Math.PI / 256);
 
   let t = 0;
 
@@ -68,7 +71,17 @@ const initializeOrbits = (modelMatrices) => {
   };
 };
 
-const main = () => {
+const loadTeapot = async () => {
+  const resp = await fetch(TEAPOT_OBJ_URL);
+  const mesh = new Mesh(await resp.text());
+  return {
+    indices: new Uint16Array(mesh.indices),
+    normals: new Float32Array(mesh.vertexNormals),
+    vertices: new Float32Array(mesh.vertices),
+  };
+};
+
+const main = async () => {
   // Get the canvas from the DOM and set dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
@@ -114,7 +127,7 @@ const main = () => {
       ],
     });
 
-  const cubeShader = (modelMatUniform, cubeTextureUniform) =>
+  const cubeShader = (modelMatUniform) =>
     Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
       clear: false,
       mode: WebGLRenderingContext.TRIANGLES,
@@ -128,24 +141,28 @@ const main = () => {
         viewMat,
         perspectiveMat,
         NormalMatUniform('u_NormalMat', modelMatUniform),
-        cubeTextureUniform,
+        skyboxCubeTexture,
         Vec3Uniform('u_CameraPosition', eyeVec),
       ],
     });
 
   // Create model matrix uniforms for each orbiting cube.
   const orbitCubesModelMatrices = [...Array(N_ORBITING_CUBES)].map(
-    () => ModelMatUniform('u_ModelMat', {scale: 2}));
+    () => ModelMatUniform('u_ModelMat', {scale: 3 - (2 * Math.random())}));
 
   // Create a callback which ticks the oribiting cubes' animation.
   const tickOrbit = initializeOrbits(orbitCubesModelMatrices);
 
   // Create the shaders for each orbiting cube.
   const orbitCubeShaders = orbitCubesModelMatrices.map(
-    modelMat => cubeShader(modelMat, skyboxCubeTexture));
+    modelMat => cubeShader(modelMat));
 
   // Model matrix for the reflective object.
-  const reflectiveModelMat = ModelMatUniform('u_ModelMat', {scale: 5});
+  const reflectiveModelMat = ModelMatUniform('u_ModelMat', {
+    scale: 0.3,
+    rotate: [-Math.PI / 2, 1, 0, 0],
+    translate: [0, -10, 0],
+  });
 
   // Cube camera uniform lets you render a shader onto a cube texture.
   // You must supply the view and perspective matrix uniforms for the
@@ -154,7 +171,26 @@ const main = () => {
     CubeCameraUniform(
       'u_Skybox', /* position */ [0, 0, 0], viewMat, perspectiveMat);
 
-  const reflectiveCube = cubeShader(reflectiveModelMat, cubeCamera);
+  const {indices, vertices, normals} = await loadTeapot();
+
+  // const reflectiveCube = cubeShader(reflectiveModelMat, cubeCamera);
+  const teapot = Shader(indices.length, cubeVertSrc, cubeFragSrc, {
+    clear: false,
+    mode: WebGLRenderingContext.TRIANGLES,
+    indices: indices,
+    attributes: [
+      Vec3Attribute('a_CubeVertex', vertices),
+      Vec3Attribute('a_CubeNormal', normals),
+    ],
+    uniforms: [
+      reflectiveModelMat,
+      viewMat,
+      perspectiveMat,
+      NormalMatUniform('u_NormalMat', reflectiveModelMat),
+      cubeCamera,
+      Vec3Uniform('u_CameraPosition', eyeVec),
+    ],
+  });
 
   const animate = () => {
     // Render the skybox.
@@ -169,7 +205,7 @@ const main = () => {
     }
 
     // Apply a transformation to the cube model.
-    reflectiveModelMat.rotate(Math.PI / 1024, 2, 1, 0);
+    // reflectiveModelMat.rotate(Math.PI / 1024, 2, 1, 0);
 
     // Render the skybox onto the cube camera texture.
     skybox(cubeCamera);
@@ -180,7 +216,7 @@ const main = () => {
     }
 
     // Render the reflective cube to the canvas.
-    reflectiveCube(canvas);
+    teapot(canvas);
 
     // Call "animate" again on the next animation frame.
     window.requestAnimationFrame(animate);

@@ -15,8 +15,6 @@ export type AttributeData = BufferSource | BufferSource[];
  * Abstraction for sending data to shaders in attributes.
  */
 export class Attribute<Data extends AttributeData> {
-  protected readonly sentToPrograms_ = new WeakSet<WebGLProgram>();
-
   constructor(
     protected readonly name_: string,
     protected readonly dimension_: number,
@@ -24,9 +22,7 @@ export class Attribute<Data extends AttributeData> {
   ) {}
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (this.sentToPrograms_.has(program)) return;
     sendAttribute(gl, program, this.name_, this.data_ as BufferSource, this.dimension_);
-    this.sentToPrograms_.add(program);
   }
 }
 
@@ -70,9 +66,7 @@ class MatrixAttribute extends Attribute<BufferSource[]> {
   }
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
-    if (this.sentToPrograms_.has(program)) return;
-    sendMatrixAttribute(gl, program, name, this.data_, this.dimension_);
-    this.sentToPrograms_.add(program);
+    sendMatrixAttribute(gl, program, this.name_, this.data_, this.dimension_);
   }
 }
 
