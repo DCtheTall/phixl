@@ -57,9 +57,14 @@ const main = () => {
 
   // Render loop.
   const animate = () => {
-    // Model matrix uniforms have convenience methods for applying
-    // transformations.
-    modelMat.rotate(Math.PI / 256, 2, 1, 0);
+    // ModelMatUniform has convenience methods for applying
+    // transformations. You can use "rotate" for applying a rotation
+    // to the existing rotation matrix, or you could use "setRotation"
+    // to set the rotation matrix to apply the specific rotation.
+    // Rotation and scale is always applied before translation.
+    modelMat.rotate(
+      /* theta */ Math.PI / 256, /* axis.x */ 2, /* axis.y */ 1,
+      /* axis.z */ 0);
 
     // Render the shader on the given target.
     shader(canvas);

@@ -23,11 +23,11 @@ const randomVec3 = () =>
   vec3.fromValues(Math.random(), Math.random(), Math.random());
 
 const rotateVector = (v, theta, axis) => {
-    const R = mat4.fromRotation(mat4.create(), theta, axis);
-    const v4 = vec4.transformMat4(
-      vec4.create(), vec4.fromValues(v[0], v[1], v[2], 1), R);
-    return vec3.fromValues(v4[0], v4[1], v4[2]);
-  }
+  const R = mat4.fromRotation(mat4.create(), theta, axis);
+  const v4 = vec4.transformMat4(
+    vec4.create(), vec4.fromValues(v[0], v[1], v[2], 1), R);
+  return vec3.fromValues(v4[0], v4[1], v4[2]);
+};
 
 const initializeOrbits = (modelMatrices) => {
   if (modelMatrices.length !== N_ORBITING_CUBES) {

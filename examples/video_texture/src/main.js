@@ -64,8 +64,14 @@ const main = () => {
 
   // Render loop.
   const animate = () => {
-    // Apply a rotation to the cube's model matrix.
-    modelMat.rotate(Math.PI / 512, 2, 1, 0);
+    // ModelMatUniform has convenience methods for applying
+    // transformations. You can use "rotate" for applying a rotation
+    // to the existing rotation matrix, or you could use "setRotation"
+    // to set the rotation matrix to apply the specific rotation.
+    // Rotation and scale is always applied before translation.
+    modelMat.rotate(
+      /* theta */ Math.PI / 512, /* axis.x */ 2, /* axis.y */ 1,
+      /* axis.z */ 0);
 
     // Render the shader on the given target.
     shader(canvas);
