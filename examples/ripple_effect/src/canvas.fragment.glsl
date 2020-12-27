@@ -7,16 +7,19 @@ uniform sampler2D u_Riverbed;
 
 uniform vec2 u_Resolution;
 
-const float kDepth = 5.0;
-const float kPerturbance = 0.005;
-
-const vec3 kViewVector = vec3(0.0, 0.0, 1.0);
-const float kRefractiveIndex = 1.3;
+const float kDepth = 10.0;
+const float kPerturbance = 0.01;
 
 const mat3 kBlurKernel = mat3(
   0.0625, 0.125, 0.0625,
   0.1250, 0.250, 0.1250,
   0.0625, 0.125, 0.0625);
+
+const vec3 kViewVector = vec3(0.0, 0.0, -1.0);
+const float kRefractiveIndex = 1.4;
+
+const vec3 kLightPos = vec3(20.0, 20.0, 100.0);
+const float kPhongExponent = 1000.0;
 
 float waveHeight(vec2 pos) {
   return 2.0 * texture2D(u_HeightMap, pos).x - 1.0;
@@ -60,16 +63,24 @@ vec2 raytracedCoord() {
   if (cosine >= 0.99) {
     return v_TexCoord;
   }
-  vec3 axial = normalize(norm - kViewVector);
+  vec3 axial = normalize(kViewVector - norm);
   float sine = length(cross(norm, kViewVector));
   // Snell's law.
   sine /= kRefractiveIndex;
-  // Negative sign is for reflection through the Z plane.
-  float h = blurredDepth(v_TexCoord);
-  vec3 displacement = normalize(vec3(-(sine / cosine) * h * axial.xy, h));
-  return v_TexCoord + displacement.xy;
+  float bd = blurredDepth(v_TexCoord);
+  vec2 displacement = (sine / cosine) * axial.xy;
+  return clamp(v_TexCoord + displacement, vec2(0.0), vec2(1.0));
+}
+
+vec3 texColor() {
+  return texture2D(u_Riverbed, raytracedCoord()).xyz;
 }
 
 void main() {
-  gl_FragColor = texture2D(u_Riverbed, raytracedCoord());
+  vec3 color = texColor();
+  vec3 lightDir = normalize(kLightPos - vec3(v_TexCoord, 0.0));
+  float diffuse = dot(lightDir, normal());
+  color *= diffuse;
+  color += color * pow(diffuse, kPhongExponent);
+  gl_FragColor = vec4(color, 1.0);
 }

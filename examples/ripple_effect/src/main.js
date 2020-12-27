@@ -26,11 +26,16 @@ const initialHeightMap = () => {
 };
 
 const main = () => {
+  // Get the canvas from the DOM and set its dimensions.
   const canvas = document.getElementById('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
 
-  // Load each shader source as a JS string.
+  // Load the shaders, for this example I am using glslify-loader and raw-loader
+  // to load the files into JS strings at build time.
+  // We load two different fragment shaders, one is for computing the height of
+  // the ripple wave at each position and the second is for rendering the ripple
+  // effect to a canvas.
   const vertShaderSrc = require('./vertex.glsl').default;
   const canvasFragShaderSrc = require('./canvas.fragment.glsl').default;
   const waveFragShaderSrc = require('./wave.fragment.glsl').default;
@@ -42,15 +47,24 @@ const main = () => {
   ];
   const resolution = Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]);
 
+  // Generate 2 textures to render the Game of Life cells to.
+  // When we iterate the discrete wave equation, we use one
+  // texture to store the previous height maps and we render the
+  // new height map to the other.
+  // Since the wave equation requires the two previous frames, we use
+  // the red and green channels of each texture to store the height
+  // of 2 previous iterations.
   const heightMapA = Texture2DUniform('u_HeightMap', initialHeightMap());
   const heightMapB = Texture2DUniform('u_HeightMap', initialHeightMap());
 
   // Add a mousedown listener to the canvas that changes the value
-  // of u_MouseDown in the shader.
+  // of the u_MouseDown boolean uniform in the shader.
   const mouseDown = BooleanUniform('u_MouseDown', false);
   canvas.addEventListener('mousedown', () => mouseDown.set(true));
   canvas.addEventListener('mouseup', () => mouseDown.set(false));
 
+  // Create a mousemove event listener that computes the mouse's coordinates
+  // relative to the canvas, scaled to the interval [0, 1].
   const mousePosition = Vec2Uniform('u_MousePosition', [0, 0]);
   canvas.addEventListener('mousemove', (e) => {
     const {left, top} = e.target.getBoundingClientRect();
@@ -61,6 +75,11 @@ const main = () => {
     mousePosition.set([x, y]);
   });
 
+  // Create the shaders used for computing the next iteration of the
+  // wave. It solves the wave equation numerically using a discrete
+  // Laplace operator and Verlet integration.
+  // waveShaderAtoB samples heightMapA and renders to heightMapB.
+  // waveShaderBtoA reverses the source and destination textures.
   const waveShader = (heightMap) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, waveFragShaderSrc, {
       attributes,
@@ -74,6 +93,11 @@ const main = () => {
   const waveShaderAtoB = waveShader(heightMapA);
   const waveShaderBtoA = waveShader(heightMapB);
 
+  // Create the shaders for rendering to the canvas.
+  // Each shader uses a different height map to render the
+  // wave to the canvas. It raytraces the surface of the
+  // water onto a texture and then adds some diffuse and specular
+  // lighting to the ripple wave.
   const canvasShader = (heightMap) =>
     Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
       attributes,
