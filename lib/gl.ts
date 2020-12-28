@@ -41,7 +41,7 @@ const compileShader = (gl: WebGLRenderingContext,
   return shader;
 };
 
-type ShaderMap = Map<string, Map<string, WebGLProgram>>;
+type ShaderMap = Map<number, Map<string, Map<string, WebGLProgram>>>;
 
 const programCache =
   new WeakMap<WebGLRenderingContext, ShaderMap>();
@@ -50,10 +50,11 @@ const programCache =
  * Create and compile a shader program. 
  */
 export const glProgram = (gl: WebGLRenderingContext,
+                          nVertices: number,
                           vertexSrc: string,
                           fragmentSrc: string): WebGLProgram => {
   const existing =
-    programCache.get(gl)?.get(vertexSrc)?.get(fragmentSrc);
+    programCache.get(gl)?.get(nVertices)?.get(vertexSrc)?.get(fragmentSrc);
   if (existing) return existing;
 
   const vertexShader = compileShader(
@@ -71,26 +72,24 @@ export const glProgram = (gl: WebGLRenderingContext,
 
   if (!programCache.get(gl)) programCache.set(gl, new Map());
   const ctxProgramCache = programCache.get(gl);
-  if (!ctxProgramCache.get(vertexSrc)) {
-    ctxProgramCache.set(vertexSrc, new Map());
+  if (!ctxProgramCache.get(nVertices)) {
+    ctxProgramCache.set(nVertices, new Map());
   }
-  ctxProgramCache.get(vertexSrc).set(fragmentSrc, result);
+  if (!ctxProgramCache.get(nVertices).get(vertexSrc)) {
+    ctxProgramCache.get(nVertices).set(vertexSrc, new Map());
+  }
+  ctxProgramCache.get(nVertices).get(vertexSrc).set(fragmentSrc, result);
 
   return result;
 };
-
-const progToLastSentIndicesMap = new WeakMap<WebGLProgram, BufferSource>();
 
 /**
  * Send indices to the element array buffer.
  */
 export const sendIndices = (gl: WebGLRenderingContext,
-                            program: WebGLProgram,
                             indices: BufferSource) => {
-  if (progToLastSentIndicesMap.get(program) === indices) return;
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-  progToLastSentIndicesMap.set(program, indices);
 };
 
 /**
@@ -98,14 +97,15 @@ export const sendIndices = (gl: WebGLRenderingContext,
  */
 export const sendAttribute = (gl: WebGLRenderingContext,
                               program: WebGLProgram,
+                              buffer: WebGLBuffer,
                               name: string,
                               data: BufferSource,
                               size: number) => {
   const loc = gl.getAttribLocation(program, name);
-  gl.enableVertexAttribArray(loc);
-  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(loc);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
 };
 
 /**
@@ -117,13 +117,14 @@ export const sendAttribute = (gl: WebGLRenderingContext,
  */
 export const sendMatrixAttribute = (gl: WebGLRenderingContext,
                                     program: WebGLProgram,
+                                    buffer: WebGLBuffer,
                                     name: string,
                                     data: BufferSource[],
                                     dimension: number) => {
   const loc = gl.getAttribLocation(program, name);
   for (let i = 0; i < dimension; i++) {
     gl.enableVertexAttribArray(loc + i);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, data[i], gl.STATIC_DRAW);
     gl.vertexAttribPointer(loc + i, dimension, gl.FLOAT, false, 0, 0);
   }
@@ -405,7 +406,10 @@ export const glRender = (gl: WebGLRenderingContext,
                          mode: number,
                          drawElements: boolean) => {
   gl.clearColor(0, 0, 0, 1);
-  if (clear) gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (clear) {
+    gl.clearDepth(gl.getParameter(gl.DEPTH_CLEAR_VALUE));
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  }
   gl.viewport(...viewport);
   if (drawElements) {
     gl.drawElements(mode, nVertices, gl.UNSIGNED_SHORT, 0);

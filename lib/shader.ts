@@ -47,13 +47,13 @@ const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
 const sendDataToShader = (gl: WebGLRenderingContext,
                           prog: WebGLProgram,
                           opts: ShaderOptions) => {
-  if (opts.indices) sendIndices(gl, prog, opts.indices);
   for (const attr of opts.attributes) {
     attr.send(gl, prog);
   }
   for (const uniform of opts.uniforms) {
     uniform.send(gl, prog);
   }
+  if (opts.indices) sendIndices(gl, opts.indices);
 };
 
 type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
@@ -61,10 +61,10 @@ type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 const pendingTextureRenders =
   new WeakMap<TextureUniform<TextureData>, TextureRenderFunc[]>();
 
-const renderPendingTextures = (gl: WebGLRenderingContext,
-                               prog: WebGLProgram,
-                               canvas: HTMLCanvasElement,
-                               uniforms: Uniform<UniformData>[]) => {
+const prepareTextureUniforms = (gl: WebGLRenderingContext,
+                                prog: WebGLProgram,
+                                canvas: HTMLCanvasElement,
+                                uniforms: Uniform<UniformData>[]) => {
   for (const uniform of uniforms) {
     if (!isTextureUniform(uniform)) continue;
     uniform.prepare(gl, prog);
@@ -85,9 +85,9 @@ const renderShader = (canvas: HTMLCanvasElement,
                       rBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
   const gl = glContext(canvas);
-  const prog = glProgram(gl, vertexSrc, fragmentSrc);
+  const prog = glProgram(gl, nVertices, vertexSrc, fragmentSrc);
 
-  renderPendingTextures(gl, prog, canvas, opts.uniforms);
+  prepareTextureUniforms(gl, prog, canvas, opts.uniforms);
 
   gl.useProgram(prog);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
@@ -166,6 +166,9 @@ type ShaderFunc = (target: RenderTarget) => RenderTarget;
 
 /**
  * Create a shader function to render to a target.
+ * 
+ * TODO handle context/program creation better
+ * TODO get nVertices from attributes/indices
  */
 export const Shader = (nVertices: number,
                        vertexSrc: string,

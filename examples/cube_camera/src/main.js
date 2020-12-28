@@ -173,11 +173,10 @@ const main = async () => {
 
   const {indices, vertices, normals} = await loadTeapot();
 
-  // const reflectiveCube = cubeShader(reflectiveModelMat, cubeCamera);
   const teapot = Shader(indices.length, cubeVertSrc, cubeFragSrc, {
     clear: false,
     mode: WebGLRenderingContext.TRIANGLES,
-    indices: indices,
+    indices,
     attributes: [
       Vec3Attribute('a_CubeVertex', vertices),
       Vec3Attribute('a_CubeNormal', normals),
@@ -205,7 +204,7 @@ const main = async () => {
     }
 
     // Apply a transformation to the cube model.
-    // reflectiveModelMat.rotate(Math.PI / 1024, 2, 1, 0);
+    reflectiveModelMat.rotate(Math.PI / 1024, 0, 1, 0);
 
     // Render the skybox onto the cube camera texture.
     skybox(cubeCamera);

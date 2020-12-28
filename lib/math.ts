@@ -228,7 +228,7 @@ export const rotate =
       axis[2] * s,
     ];
     const R = quatToRotationMat(q);
-    if (d === 3) return multiply(R, A as Matrix3) as M;
+    if (d === 3) return multiply(A as Matrix3, R) as M;
 
     const R4: Matrix4 = [
       R[0], R[1], R[2], 0,
@@ -236,7 +236,7 @@ export const rotate =
       R[6], R[7], R[8], 0,
       0, 0, 0, 1,
     ];
-    return multiply(R4, A as Matrix4) as M;
+    return multiply(A as Matrix4, R4) as M;
   };
 
 /**
