@@ -1,6 +1,5 @@
 const {
   CUBE_INDICES,
-  CUBE_N_VERTICES,
   CUBE_NORMALS,
   CUBE_VERTICES,
   CubeCameraUniform,
@@ -116,7 +115,7 @@ const main = async () => {
   });
 
   const skybox =
-    Shader(CUBE_N_VERTICES, skyboxVertSrc, skyboxFragSrc, {
+    Shader(skyboxVertSrc, skyboxFragSrc, {
       mode: WebGLRenderingContext.TRIANGLES,
       indices: CUBE_INDICES,
       attributes: [cubeVertices],
@@ -128,7 +127,7 @@ const main = async () => {
     });
 
   const cubeShader = (modelMatUniform) =>
-    Shader(CUBE_N_VERTICES, cubeVertSrc, cubeFragSrc, {
+    Shader(cubeVertSrc, cubeFragSrc, {
       clear: false,
       mode: WebGLRenderingContext.TRIANGLES,
       indices: CUBE_INDICES,
@@ -173,7 +172,7 @@ const main = async () => {
 
   const {indices, vertices, normals} = await loadTeapot();
 
-  const teapot = Shader(indices.length, cubeVertSrc, cubeFragSrc, {
+  const teapot = Shader(cubeVertSrc, cubeFragSrc, {
     clear: false,
     mode: WebGLRenderingContext.TRIANGLES,
     indices,

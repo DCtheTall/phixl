@@ -4,12 +4,7 @@
 
 import {sendAttribute, sendMatrixAttribute} from './gl';
 
-/**
- * Different types of data attributes can use. For matrix
- * attributes we use an array of buffers which hold the matrix
- * values as a sequence of vectors in column-major order.
- */
-export type AttributeData = BufferSource | BufferSource[];
+export type AttributeData = Float32List|Float32List[];
 
 /**
  * Abstraction for sending data to shaders in attributes.
@@ -21,25 +16,38 @@ export class Attribute<Data extends AttributeData> {
     protected readonly name_: string,
     protected readonly dimension_: number,
     protected data_: Data,
-  ) {}
+  ) {
+    if (Array.isArray(this.data_) && !isNaN(this.data_[0])) {
+      this.data_ = new Float32Array(this.data_) as Data;
+    }
+  }
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (!this.buffer_) this.buffer_ = gl.createBuffer();
     sendAttribute(
-      gl, program, this.buffer_, this.name_, this.data_ as BufferSource,
+      gl, program, this.buffer_, this.name_, this.data_ as Float32Array,
       this.dimension_);
+  }
+
+  length() {
+    if (this.data_ instanceof Float32Array) {
+      let result = this.data_.byteLength / this.data_.BYTES_PER_ELEMENT;
+      result /= this.dimension_;
+      return result;
+    } else {
+      return this.data_.length / this.dimension_;
+    }
   }
 }
 
-type AttributeBuilder = (name: string, data: BufferSource) =>
-  Attribute<BufferSource>;
+type AttributeBuilder =
+  (name: string, data: Float32List) => Attribute<Float32List>;
 
 /**
  * Returns an attribute builder function for the appropriate type.
  */
 const attribute = (dimension: number): AttributeBuilder =>
-  (name: string, data: BufferSource) =>
-    new Attribute(name, dimension, data);
+  (name: string, data: Float32List) => new Attribute(name, dimension, data);
 
 /**
  * Sends a float attribute to a shader.
@@ -61,27 +69,31 @@ export const Vec3Attribute = attribute(3);
  */
 export const Vec4Attribute = attribute(4);
 
-class MatrixAttribute extends Attribute<BufferSource[]> {
+class MatrixAttribute extends Attribute<Float32List[]> {
   constructor(
     name: string,
     dimension: number,
-    data: BufferSource[],
+    data: Float32List[],
   ) {
     super(name, dimension, data);
+    if (Array.isArray(data[0]) && Array.isArray(data[0][0])) {
+      this.data_ = this.data_.map((arr) => new Float32Array(arr));
+    }
   }
 
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (!this.buffer_) this.buffer_ = gl.createBuffer();
     sendMatrixAttribute(
-      gl, program, this.buffer_, this.name_, this.data_, this.dimension_);
+      gl, program, this.buffer_, this.name_, this.data_ as Float32Array[],
+      this.dimension_);
   }
 }
 
-type MatAttributeBuilder = (name: string, data: BufferSource[]) =>
+type MatAttributeBuilder = (name: string, data: Float32List[]) =>
   MatrixAttribute;
 
 const matrixAttribute = (dimension: number): MatAttributeBuilder =>
-  (name: string, data: BufferSource[]) =>
+  (name: string, data: Float32List[]) =>
     new MatrixAttribute(name, dimension, data);
 
 /**

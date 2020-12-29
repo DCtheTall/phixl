@@ -1,5 +1,4 @@
 const {
-  PLANE_N_VERTICES,
   PLANE_VERTICES,
   PLANE_TEX_COORDS,
   Shader,
@@ -23,7 +22,7 @@ const renderExample = (video) => {
 
   // Create the shader for the edge detection algorithm.
   const shader =
-    Shader(PLANE_N_VERTICES, vertShaderSrc, fragShaderSrc, {
+    Shader(vertShaderSrc, fragShaderSrc, {
       attributes: [
         Vec2Attribute('a_Position', PLANE_VERTICES),
         Vec2Attribute('a_TexCoord', PLANE_TEX_COORDS),

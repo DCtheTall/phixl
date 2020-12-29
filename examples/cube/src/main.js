@@ -1,5 +1,4 @@
 const {
-  CUBE_N_VERTICES,
   CUBE_VERTICES,
   CUBE_TEX_COORDS,
   CUBE_INDICES,
@@ -33,7 +32,7 @@ const main = () => {
   // Build the shader that we will use to render the cube.
   // Shader returns a function which will render the shader to a
   // HTMLCanvasElement.
-  const shader = Shader(CUBE_N_VERTICES, vertexShader, fragmentShader, {
+  const shader = Shader(vertexShader, fragmentShader, {
     mode: WebGLRenderingContext.TRIANGLES,
     indices: CUBE_INDICES,
     attributes: [

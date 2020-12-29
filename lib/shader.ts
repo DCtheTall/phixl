@@ -27,7 +27,7 @@ export interface ShaderOptions {
   // GLenum for primitive type to render. See:
   // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/drawArrays
   mode?: number;
-  indices?: BufferSource;
+  indices?: Uint16Array;
   clear?: boolean;
 }
 
@@ -47,7 +47,13 @@ const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
 const sendDataToShader = (gl: WebGLRenderingContext,
                           prog: WebGLProgram,
                           opts: ShaderOptions) => {
+  let firstLen: number;
   for (const attr of opts.attributes) {
+    if (isNaN(firstLen)) {
+      firstLen = attr.length();
+    } else if (attr.length() != firstLen) {
+      throw new Error('Mismatched attrbute size');
+    }
     attr.send(gl, prog);
   }
   for (const uniform of opts.uniforms) {
@@ -77,15 +83,18 @@ const prepareTextureUniforms = (gl: WebGLRenderingContext,
   }
 };
 
+const nVertices = (opts: ShaderOptions): number =>
+  opts.indices ? opts.indices.length : opts.attributes[0].length();
+
 const renderShader = (canvas: HTMLCanvasElement,
-                      nVertices: number,
                       vertexSrc: string,
                       fragmentSrc: string,
                       fBuffer: WebGLFramebuffer | null,
                       rBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
   const gl = glContext(canvas);
-  const prog = glProgram(gl, nVertices, vertexSrc, fragmentSrc);
+  // TODO remove the need to pass number of vertices to this fn.
+  const prog = glProgram(gl, nVertices(opts), vertexSrc, fragmentSrc);
 
   prepareTextureUniforms(gl, prog, canvas, opts.uniforms);
 
@@ -95,14 +104,14 @@ const renderShader = (canvas: HTMLCanvasElement,
 
   sendDataToShader(gl, prog, opts);
   glRender(
-    gl, nVertices, clearOption(opts), opts.viewport || defaultViewport(canvas),
-    opts.mode || defaultOpts.mode, /* drawElements= */ !!opts.indices);
+    gl, nVertices(opts), clearOption(opts),
+    opts.viewport || defaultViewport(canvas), opts.mode || defaultOpts.mode,
+    /* drawElements= */ !!opts.indices);
 };
 
 const renderCubeTexture = (canvas: HTMLCanvasElement,
                            opts: ShaderOptions,
                            target: CubeTextureImpl,
-                           nVertices: number,
                            vertexSrc: string,
                            fragmentSrc: string) => {
   if (target instanceof CubeCameraUniformImpl) {
@@ -111,7 +120,7 @@ const renderCubeTexture = (canvas: HTMLCanvasElement,
     const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
     target.render((cf: CubeFace) => {
       renderShader(
-        canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer[cf],
+        canvas, vertexSrc, fragmentSrc, frameBuffer[cf],
         renderBuffer[cf], opts);
     });
     return;
@@ -123,31 +132,27 @@ const renderCubeTexture = (canvas: HTMLCanvasElement,
 const render2DTexture = (canvas: HTMLCanvasElement,
                          opts: ShaderOptions,
                          target: Texture2DUniformImpl,
-                         nVertices: number,
                          vertexSrc: string,
                          fragmentSrc: string) => {
   const gl = glContext(canvas);
   const viewport = opts.viewport || defaultViewport(canvas);
   const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
   renderShader(
-    canvas, nVertices, vertexSrc, fragmentSrc, frameBuffer,
+    canvas, vertexSrc, fragmentSrc, frameBuffer,
     renderBuffer, opts);
 };
 
 const createTextureRenderFunc = (target: TextureUniform<TextureData>,
-                                 nVertices: number,
                                  vertexSrc: string,
                                  fragmentSrc: string,
                                  opts: ShaderOptions): TextureRenderFunc =>
   (canvas: HTMLCanvasElement) => {
     if (isCubeTextureUniform(target)) {
-      renderCubeTexture(
-        canvas, opts, target, nVertices, vertexSrc, fragmentSrc);
+      renderCubeTexture(canvas, opts, target, vertexSrc, fragmentSrc);
       return;
     }
     render2DTexture(
-      canvas, opts, target as Texture2DUniformImpl, nVertices, vertexSrc,
-      fragmentSrc);
+      canvas, opts, target as Texture2DUniformImpl, vertexSrc, fragmentSrc);
   };
 
 const addTextureRenderFunc = (target: TextureUniform<TextureData>,
@@ -168,21 +173,22 @@ type ShaderFunc = (target: RenderTarget) => RenderTarget;
  * Create a shader function to render to a target.
  * 
  * TODO handle context/program creation better
- * TODO get nVertices from attributes/indices
  */
-export const Shader = (nVertices: number,
-                       vertexSrc: string,
+export const Shader = (vertexSrc: string,
                        fragmentSrc: string,
                        opts: ShaderOptions = defaultOpts): ShaderFunc => {
+  if (!opts.attributes?.length) {
+    throw new Error('Shaders require at least one attribute');
+  }
   return (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       renderShader(
-        target, nVertices, vertexSrc, fragmentSrc, null, null, opts);
+        target, vertexSrc, fragmentSrc, null, null, opts);
       return target;
     } else if (isTextureUniform(target)) {
       addTextureRenderFunc(
         target,
-        createTextureRenderFunc(target, nVertices, vertexSrc, fragmentSrc, opts));
+        createTextureRenderFunc(target, vertexSrc, fragmentSrc, opts));
       return target;
     }
     throw new Error(

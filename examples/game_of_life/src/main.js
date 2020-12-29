@@ -1,5 +1,4 @@
 const {
-  PLANE_N_VERTICES,
   PLANE_VERTICES,
   PLANE_TEX_COORDS,
   Shader,
@@ -60,7 +59,7 @@ const main = () => {
   // cellsAtoB uses the texture in cellsA to render a texture to cellsB.
   // cellsBtoA reverses the source and destination textures.
   const cellsShader = (sourceTexture) =>
-    Shader(PLANE_N_VERTICES, vertShaderSrc, cellFragShaderSrc, {
+    Shader(vertShaderSrc, cellFragShaderSrc, {
       attributes,
       uniforms: [
         Vec2Uniform('u_Resolution', [CANVAS_SIZE, CANVAS_SIZE]),
@@ -74,7 +73,7 @@ const main = () => {
   // We use separate shaders for this depending on whether cellsA or cellsB
   // contains the most recently updated board.
   const canvasShader = (textureUniform) =>
-    Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
+    Shader(vertShaderSrc, canvasFragShaderSrc, {
       attributes,
       uniforms: [textureUniform],
     });

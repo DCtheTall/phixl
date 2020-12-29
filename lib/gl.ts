@@ -99,7 +99,7 @@ export const sendAttribute = (gl: WebGLRenderingContext,
                               program: WebGLProgram,
                               buffer: WebGLBuffer,
                               name: string,
-                              data: BufferSource,
+                              data: Float32Array,
                               size: number) => {
   const loc = gl.getAttribLocation(program, name);
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -119,7 +119,7 @@ export const sendMatrixAttribute = (gl: WebGLRenderingContext,
                                     program: WebGLProgram,
                                     buffer: WebGLBuffer,
                                     name: string,
-                                    data: BufferSource[],
+                                    data: Float32Array[],
                                     dimension: number) => {
   const loc = gl.getAttribLocation(program, name);
   for (let i = 0; i < dimension; i++) {

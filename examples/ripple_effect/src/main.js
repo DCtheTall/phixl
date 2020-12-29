@@ -1,5 +1,4 @@
 const {
-  PLANE_N_VERTICES,
   PLANE_VERTICES,
   PLANE_TEX_COORDS,
   BooleanUniform,
@@ -81,7 +80,7 @@ const main = () => {
   // waveShaderAtoB samples heightMapA and renders to heightMapB.
   // waveShaderBtoA reverses the source and destination textures.
   const waveShader = (heightMap) =>
-    Shader(PLANE_N_VERTICES, vertShaderSrc, waveFragShaderSrc, {
+    Shader(vertShaderSrc, waveFragShaderSrc, {
       attributes,
       uniforms: [
         resolution,
@@ -99,7 +98,7 @@ const main = () => {
   // water onto a texture and then adds some diffuse and specular
   // lighting to the ripple wave.
   const canvasShader = (heightMap) =>
-    Shader(PLANE_N_VERTICES, vertShaderSrc, canvasFragShaderSrc, {
+    Shader(vertShaderSrc, canvasFragShaderSrc, {
       attributes,
       uniforms: [
         heightMap,
