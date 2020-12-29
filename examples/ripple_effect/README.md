@@ -15,9 +15,9 @@ to compute the next iteration of the wave. The wave texture is also used
 to apply a shader to a canvas which uses the ripple effect and Snell's law
 to render a realistic looking water effect.
 
-### Topics covered in this example
+## Topics covered in this example
 
-#### High level topics
+### High level topics
 
 - Convolutions
 - Gaussian blur filter
@@ -31,7 +31,7 @@ to render a realistic looking water effect.
 - Sampling from a texture
 - Animating the scene
 
-#### Code
+### Code
 
 - `BooleanUniform`
 - `Shader`

@@ -44,22 +44,29 @@ const clearOption = (opts: ShaderOptions) =>
 const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
   [0, 0, canvas.width, canvas.height];
 
-const sendDataToShader = (gl: WebGLRenderingContext,
-                          prog: WebGLProgram,
-                          opts: ShaderOptions) => {
-  let firstLen: number;
-  for (const attr of opts.attributes) {
-    if (isNaN(firstLen)) {
-      firstLen = attr.length();
-    } else if (attr.length() != firstLen) {
-      throw new Error('Mismatched attrbute size');
-    }
-    attr.send(gl, prog);
+const nVertices = (opts: ShaderOptions): number =>
+  opts.indices ? opts.indices.length : opts.attributes[0].length();
+
+type CacheKey = {};
+
+interface CacheItem {
+  gl: WebGLRenderingContext;
+  program: WebGLProgram;
+}
+
+const cache = new WeakMap<CacheKey, CacheItem>();
+
+const lookup = (key: CacheKey,
+                canvas: HTMLCanvasElement,
+                vertexSrc: string,
+                fragmentSrc: string): CacheItem => {
+  let state = cache.get(key);
+  if (!state) {
+    const gl = glContext(canvas);
+    state = {gl, program: glProgram(gl, vertexSrc, fragmentSrc)};
+    cache.set(key, state);
   }
-  for (const uniform of opts.uniforms) {
-    uniform.send(gl, prog);
-  }
-  if (opts.indices) sendIndices(gl, opts.indices);
+  return state;
 };
 
 type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
@@ -83,47 +90,38 @@ const prepareTextureUniforms = (gl: WebGLRenderingContext,
   }
 };
 
-const nVertices = (opts: ShaderOptions): number =>
-  opts.indices ? opts.indices.length : opts.attributes[0].length();
-
-type CacheKey = {};
-
-interface CacheItem {
-  gl: WebGLRenderingContext;
-  program: WebGLProgram;
-}
-
-const cache = new WeakMap<CacheKey, CacheItem>();
-
-const contextAndProgram = (key: CacheKey,
-                           canvas: HTMLCanvasElement,
-                           vertexSrc: string,
-                           fragmentSrc: string): CacheItem => {
-  let state = cache.get(key);
-  if (!state) {
-    const gl = glContext(canvas);
-    state = {gl, program: glProgram(gl, vertexSrc, fragmentSrc)};
-    cache.set(key, state);
+const sendDataToShader = (gl: WebGLRenderingContext,
+                          prog: WebGLProgram,
+                          opts: ShaderOptions) => {
+  let firstLen: number;
+  for (const attr of opts.attributes) {
+    if (isNaN(firstLen)) {
+      firstLen = attr.length();
+    } else if (attr.length() != firstLen) {
+      throw new Error('Mismatched attrbute size');
+    }
+    attr.send(gl, prog);
   }
-  return state;
+  for (const uniform of opts.uniforms) {
+    uniform.send(gl, prog);
+  }
+  if (opts.indices) sendIndices(gl, opts.indices);
 };
 
 const renderShader = (key: CacheKey,
                       canvas: HTMLCanvasElement,
                       vertexSrc: string,
                       fragmentSrc: string,
-                      fBuffer: WebGLFramebuffer | null,
-                      rBuffer: WebGLRenderbuffer | null,
+                      frameBuffer: WebGLFramebuffer | null,
+                      renderBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
-  
-  const {gl, program} =
-    contextAndProgram(key, canvas, vertexSrc, fragmentSrc);
+  const {gl, program} = lookup(key, canvas, vertexSrc, fragmentSrc);
 
   prepareTextureUniforms(gl, program, canvas, opts.uniforms);
 
   gl.useProgram(program);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
-  gl.bindRenderbuffer(gl.RENDERBUFFER, rBuffer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
 
   sendDataToShader(gl, program, opts);
   glRender(

@@ -183,26 +183,26 @@ export const sendVectorUniform = (gl: WebGLRenderingContext,
   }
 };
 
-const textureAddresses = new WeakMap<WebGLProgram, string[]>();
+const textureOffsets = new WeakMap<WebGLProgram, string[]>();
 
 /**
  * Get the next available address for textures.
  */
 export const newTextureOffset = (program: WebGLProgram,
                                  name: string): number => {
-  const existing = textureAddresses.get(program) || [];
+  const offsets = textureOffsets.get(program) || [];
 
-  for (let i = 0; i < existing.length; i++) {
-    if (existing[i] === name) return i;
+  for (let i = 0; i < offsets.length; i++) {
+    if (offsets[i] === name) return i;
   }
   
-  const curOffset = existing.length;
+  const curOffset = offsets.length;
   if (curOffset === 32) {
     throw new Error('Already at maximum number of textures for this program');
   }
 
-  existing.push(name);
-  if (!curOffset) textureAddresses.set(program, existing);
+  offsets.push(name);
+  if (!curOffset) textureOffsets.set(program, offsets);
 
   return curOffset;
 };
@@ -320,7 +320,7 @@ export const renderBuffer = (gl: WebGLRenderingContext,
  * Create a 2D texture that will sample from a framebuffer.
  */
 export const texture2DFromFramebuffer = (gl: WebGLRenderingContext,
-                                         fBuffer: WebGLFramebuffer,
+                                         frameBuffer: WebGLFramebuffer,
                                          width: number,
                                          height: number): WebGLTexture => {
   const texture = gl.createTexture();
@@ -328,7 +328,7 @@ export const texture2DFromFramebuffer = (gl: WebGLRenderingContext,
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
   gl.texImage2D(
     gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
     null);
