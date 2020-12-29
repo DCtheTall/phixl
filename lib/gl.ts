@@ -4,26 +4,17 @@
 
 import {Cube, CubeFace, cubeFaces, isCube, isPowerOfTwo} from './math';
 
-const contextCache =
-  new WeakMap<HTMLCanvasElement, WebGLRenderingContext>();
-
 /**
  * Get the current WebGL context.
  * If this is the first time you 
  */
 export const glContext = (canvas: HTMLCanvasElement): WebGLRenderingContext => {
-  const existing = contextCache.get(canvas);
-  if (existing) return existing;
-
   const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true})
       || canvas.getContext( 
           'experimental-webgl',
           {preserveDrawingBuffer: true}) as WebGLRenderingContext;
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
-
-  contextCache.set(canvas, gl);
-
   return gl;
 };
 
@@ -41,22 +32,12 @@ const compileShader = (gl: WebGLRenderingContext,
   return shader;
 };
 
-type ShaderMap = Map<number, Map<string, Map<string, WebGLProgram>>>;
-
-const programCache =
-  new WeakMap<WebGLRenderingContext, ShaderMap>();
-
 /**
  * Create and compile a shader program. 
  */
 export const glProgram = (gl: WebGLRenderingContext,
-                          nVertices: number,
                           vertexSrc: string,
                           fragmentSrc: string): WebGLProgram => {
-  const existing =
-    programCache.get(gl)?.get(nVertices)?.get(vertexSrc)?.get(fragmentSrc);
-  if (existing) return existing;
-
   const vertexShader = compileShader(
     gl, gl.createShader(WebGLRenderingContext.VERTEX_SHADER), vertexSrc);
   const fragmentShader = compileShader(
@@ -69,17 +50,6 @@ export const glProgram = (gl: WebGLRenderingContext,
     throw new Error(
       `Shader failed to compile: ${gl.getProgramInfoLog(result)}`);
   }
-
-  if (!programCache.get(gl)) programCache.set(gl, new Map());
-  const ctxProgramCache = programCache.get(gl);
-  if (!ctxProgramCache.get(nVertices)) {
-    ctxProgramCache.set(nVertices, new Map());
-  }
-  if (!ctxProgramCache.get(nVertices).get(vertexSrc)) {
-    ctxProgramCache.get(nVertices).set(vertexSrc, new Map());
-  }
-  ctxProgramCache.get(nVertices).get(vertexSrc).set(fragmentSrc, result);
-
   return result;
 };
 

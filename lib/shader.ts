@@ -21,7 +21,7 @@ import {
  * Interface for the options you can supply to Shader.
  */
 export interface ShaderOptions {
-  attributes?: Attribute<AttributeData>[];
+  attributes: Attribute<AttributeData>[];
   uniforms?: Uniform<UniformData>[];
   viewport?: Viewport;
   // GLenum for primitive type to render. See:
@@ -86,30 +86,54 @@ const prepareTextureUniforms = (gl: WebGLRenderingContext,
 const nVertices = (opts: ShaderOptions): number =>
   opts.indices ? opts.indices.length : opts.attributes[0].length();
 
-const renderShader = (canvas: HTMLCanvasElement,
+type CacheKey = {};
+
+interface CacheItem {
+  gl: WebGLRenderingContext;
+  program: WebGLProgram;
+}
+
+const cache = new WeakMap<CacheKey, CacheItem>();
+
+const contextAndProgram = (key: CacheKey,
+                           canvas: HTMLCanvasElement,
+                           vertexSrc: string,
+                           fragmentSrc: string): CacheItem => {
+  let state = cache.get(key);
+  if (!state) {
+    const gl = glContext(canvas);
+    state = {gl, program: glProgram(gl, vertexSrc, fragmentSrc)};
+    cache.set(key, state);
+  }
+  return state;
+};
+
+const renderShader = (key: CacheKey,
+                      canvas: HTMLCanvasElement,
                       vertexSrc: string,
                       fragmentSrc: string,
                       fBuffer: WebGLFramebuffer | null,
                       rBuffer: WebGLRenderbuffer | null,
                       opts: ShaderOptions) => {
-  const gl = glContext(canvas);
-  // TODO remove the need to pass number of vertices to this fn.
-  const prog = glProgram(gl, nVertices(opts), vertexSrc, fragmentSrc);
+  
+  const {gl, program} =
+    contextAndProgram(key, canvas, vertexSrc, fragmentSrc);
 
-  prepareTextureUniforms(gl, prog, canvas, opts.uniforms);
+  prepareTextureUniforms(gl, program, canvas, opts.uniforms);
 
-  gl.useProgram(prog);
+  gl.useProgram(program);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer);
   gl.bindRenderbuffer(gl.RENDERBUFFER, rBuffer);
 
-  sendDataToShader(gl, prog, opts);
+  sendDataToShader(gl, program, opts);
   glRender(
     gl, nVertices(opts), clearOption(opts),
     opts.viewport || defaultViewport(canvas), opts.mode || defaultOpts.mode,
     /* drawElements= */ !!opts.indices);
 };
 
-const renderCubeTexture = (canvas: HTMLCanvasElement,
+const renderCubeTexture = (key: CacheKey,
+                           canvas: HTMLCanvasElement,
                            opts: ShaderOptions,
                            target: CubeTextureImpl,
                            vertexSrc: string,
@@ -120,7 +144,7 @@ const renderCubeTexture = (canvas: HTMLCanvasElement,
     const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
     target.render((cf: CubeFace) => {
       renderShader(
-        canvas, vertexSrc, fragmentSrc, frameBuffer[cf],
+        key, canvas, vertexSrc, fragmentSrc, frameBuffer[cf],
         renderBuffer[cf], opts);
     });
     return;
@@ -129,7 +153,8 @@ const renderCubeTexture = (canvas: HTMLCanvasElement,
   throw new Error('Not implemented');
 };
 
-const render2DTexture = (canvas: HTMLCanvasElement,
+const render2DTexture = (key: CacheKey,
+                         canvas: HTMLCanvasElement,
                          opts: ShaderOptions,
                          target: Texture2DUniformImpl,
                          vertexSrc: string,
@@ -138,21 +163,22 @@ const render2DTexture = (canvas: HTMLCanvasElement,
   const viewport = opts.viewport || defaultViewport(canvas);
   const {frameBuffer, renderBuffer} = target.buffers(gl, viewport);
   renderShader(
-    canvas, vertexSrc, fragmentSrc, frameBuffer,
+    key, canvas, vertexSrc, fragmentSrc, frameBuffer,
     renderBuffer, opts);
 };
 
-const createTextureRenderFunc = (target: TextureUniform<TextureData>,
+const createTextureRenderFunc = (key: CacheKey,
+                                 target: TextureUniform<TextureData>,
                                  vertexSrc: string,
                                  fragmentSrc: string,
                                  opts: ShaderOptions): TextureRenderFunc =>
   (canvas: HTMLCanvasElement) => {
     if (isCubeTextureUniform(target)) {
-      renderCubeTexture(canvas, opts, target, vertexSrc, fragmentSrc);
+      renderCubeTexture(key, canvas, opts, target, vertexSrc, fragmentSrc);
       return;
     }
     render2DTexture(
-      canvas, opts, target as Texture2DUniformImpl, vertexSrc, fragmentSrc);
+      key, canvas, opts, target as Texture2DUniformImpl, vertexSrc, fragmentSrc);
   };
 
 const addTextureRenderFunc = (target: TextureUniform<TextureData>,
@@ -171,24 +197,23 @@ type ShaderFunc = (target: RenderTarget) => RenderTarget;
 
 /**
  * Create a shader function to render to a target.
- * 
- * TODO handle context/program creation better
  */
 export const Shader = (vertexSrc: string,
                        fragmentSrc: string,
-                       opts: ShaderOptions = defaultOpts): ShaderFunc => {
-  if (!opts.attributes?.length) {
+                       opts: ShaderOptions): ShaderFunc => {
+  if (!(opts && opts.attributes?.length)) {
     throw new Error('Shaders require at least one attribute');
   }
+  const key: CacheKey = {};
   return (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       renderShader(
-        target, vertexSrc, fragmentSrc, null, null, opts);
+        key, target, vertexSrc, fragmentSrc, null, null, opts);
       return target;
     } else if (isTextureUniform(target)) {
       addTextureRenderFunc(
         target,
-        createTextureRenderFunc(target, vertexSrc, fragmentSrc, opts));
+        createTextureRenderFunc(key, target, vertexSrc, fragmentSrc, opts));
       return target;
     }
     throw new Error(

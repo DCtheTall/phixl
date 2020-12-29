@@ -15,8 +15,6 @@
  *   lower right.
  */
 
-export const PLANE_N_VERTICES = 4;
-
 export const PLANE_VERTICES =
   new Float32Array([-1, 1, 1, 1, -1, -1, 1, -1]);
 
@@ -29,8 +27,6 @@ export const PLANE_TEX_COORDS =
  * Can be rendered using drawElements() with
  * WebGLRenderingContext.TRIANGLES
  */
-
-export const CUBE_N_VERTICES = 36;
 
 export const CUBE_VERTICES = new Float32Array([
   // Front face
