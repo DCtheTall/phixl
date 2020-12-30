@@ -195,6 +195,8 @@ type ShaderFunc = (target: RenderTarget) => RenderTarget;
 
 /**
  * Create a shader function to render to a target.
+ *
+ * TODO validation for arguments
  */
 export const Shader = (vertexSrc: string,
                        fragmentSrc: string,
