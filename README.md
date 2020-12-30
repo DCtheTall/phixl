@@ -158,6 +158,10 @@ that creates functions that apply a shader to a render target. It takes 3 argume
 
 ### Attributes
 
+This library provides an abstraction for sending attributes to shaders with just a function
+call. This library assumes that a shader's attributes are _immutable_ and should not be changed
+once they are initialized.
+
 All attributes take 2 arguments:
 
 1. The name of the attribute in the shader
@@ -185,13 +189,20 @@ column vector of the matrix. Matrix attributes are:
 
 ### Uniforms
 
-Below are a list of uniforms available to phixl users. The parameters
-of uniform functions and their behavior varies quite a bit more than
-attributes.
+This library also provides some abstractions for sending uniforms to WebGL shaders
+as well.
 
-All uniforms take the name of the uniform in the shader as their first
-argument. Below is a list of the different uniforms and what parameters
-they expect.
+Unlike attributes, uniforms are not immutable, and can have their value changed.
+Almost all uniforms have a `set()` method for setting the uniforms data after
+it is created and a `data()` method for retrieving the current value of the data.
+The `set()` method can also be called with a callback with no arguments that
+returns the uniform data. The callback will be invoked several times in phixl's
+internals so it should **not** have side effects.
+
+Below are a list of uniforms available to phixl users. The parameters of uniform
+functions and their behavior varies quite a bit more than attributes. All uniforms
+take the name of the uniform in the shader as their first argument. Below is a
+list of the different uniforms and what parameters they expect.
 
 #### `BooleanUniform`
 
@@ -210,6 +221,131 @@ be a whole number. Example usage:
 ```javascript
 const int = IntegerUniform('u_Foo', 3);
 ```
+
+#### `FloatUniform`
+
+Sends a float value to a shader uniform. The second argument should be a number.
+Example usage:
+
+```javascript
+const float = new FloatUniform('u_Foo', Math.PI);
+```
+
+#### Vector uniforms
+
+Vector uniforms send a vector of float values to a shader uniform. The second
+argument should be an array of numbers. The size of the array depends on the
+dimension of the vector. Example usage:
+
+```javascript
+const vec2 = Vec2Uniform('u_Foo', [1, 2]);
+const vec3 = Vec3Uniform('u_Bar', [1, 2, 3]);
+const vec4 = Vec4Uniform('u_Baz', [1, 2, 3, 4]);
+```
+
+#### Matrix uniforms
+
+Matrix uniforms sends a matrix of float values to a shader uniform. The second
+argument should be an array of numbers. The size of the array depends on the
+dimension of the matrix. Example usage with
+[`gl-matrix`](https://www.npmjs.com/package/gl-matrix):
+
+```javascript
+const {mat2, mat3, mat4} = require('gl-matrix');
+
+const mat2 = Mat2Uniform('u_Foo', mat2.create());
+const mat3 = Mat3Uniform('u_Bar', mat3.create());
+const mat4 = Mat4Uniform('u_Baz', mat4.create());
+```
+
+#### `ModelMatUniform`
+
+The `ModelMatUniform` senda a 4D matrix uniform for shaders meant to transform
+model vertices into the world coordinates. The second argument is an optional
+object with the following (each optional) keys:
+
+```javascript
+const modelMat = ModelMatUniform('u_ModelMat', {
+  scale: 2, // Can also be an array with 1, 3, or 4 elements.
+  rotate: [
+    /* theta */ Math.PI / 2,
+    /* axis.x */ 2,
+    /* axis.y */ 1,
+    /* axis.z */ 0,
+  ],
+  translate: [10, 10, 0],
+});
+```
+
+The uniform computes the 4D model matrix which applies the corresponding
+combination of transformations, the scaling is applied first, then the rotation,
+and finally the translation.
+
+The object returned by `ModelMatUniform` has accessor methods which let you get
+the different components of the model transformation:
+
+```javascript
+modelMat.scaleMatrix(); // Gets the scale matrix as a 4D matrix.
+modelMat.rotationMatrix(); // Gets the rotation matrix as a 3D matrix.
+modelMat.translation(); // Gets the translation as a 3D vector.
+```
+
+The object returned by `ModelMatUniform` has convenience methods which allow you
+to change each individual part of the transformation:
+
+```javascript
+modelMat.scale(3); // Applies this scale to the existing scale.
+modelMat.setScale(3); // Resets the scale component of the matrix to the new value.
+
+modelMat.rotate(Math.PI / 2, 1, 1, 0); // Applies the rotation to the existing rotation matrix.
+modelMat.setRotation(Math.PI / 2, 1, 1, 0); // Sets the rotation matrix to apply only the provided rotation.
+
+modelMat.translate(1, 2, 3); // Adds the new values to the existing translation vector.
+modelMat.setTranslation(1, 2, 3); // Sets the translation vector to this new one.
+```
+
+#### `NormalMatUniform`
+
+The `NormalMatUniform` sends a 3D matrix uniform for transforming model normal vectors to
+a shader. It takes an object returned by `ModelMatUniform` as a second argument and computes
+the resulting normal matrix automatically. Below is an example:
+
+```javascript
+const modelMat = ModelMatUniform('u_ModelMat', ...);
+const normalMat = NormalMatUniform('u_NormalMat', modelMat);
+```
+
+#### `ViewMatUniform`
+
+The `ViewMatUniform` sends a 4D matrix to a shader which transforms vertices from world coordinates
+to the view coordinates of the scene's camera. It takes multiple arguments to compute the view matrix
+and is based on `gl-matrix`'s `lookAt` function. Below is an example:
+
+```javascript
+const viewMat =
+  ViewMatUniform(
+    'u_ViewMat', /* eye */ [0, 0, 30], /* at */ [0, 0, 0], /* up */ [0, 1, 0]);
+```
+
+The object returned by `ViewMatUniform` has accessor methods which let you get the eye, at, or up
+vectors for the view matrix:
+
+```javascript
+viewMat.eye();
+viewMat.at();
+viewMat.up();
+```
+
+The object also has setter methods for each vector as well:
+
+```javascript
+viewMat.setEye(10, 0, 30);
+viewMat.setAt(10, 0, 0);
+viewMat.setUp(1, 10, 0);
+```
+
+As you may notice, the up vector does not need to be normalized, the object will do that for you when
+it computes the view matrix.
 
 TODO rest of uniforms
 

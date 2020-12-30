@@ -222,7 +222,7 @@ class ModelMatUniformImpl extends SequenceUniform {
   private translation_: Vector3;
 
   constructor(name: string, opts: ModelMatOptions) {
-    super(UniformType.MATRIX, name, 4, () => this.matrix());
+    super(UniformType.MATRIX, name, 4, () => this.matrix_());
     this.scaleMatrix_ = identity(4) as Matrix4;
     if (opts.scale) {
       if (typeof opts.scale === 'number') {
@@ -261,7 +261,7 @@ class ModelMatUniformImpl extends SequenceUniform {
     return [...this.translation_];
   }
 
-  matrix(): Matrix4 {
+  private matrix_(): Matrix4 {
     return translate(
       multiply(this.rotationMatrix4_(), this.scaleMatrix()) as Matrix4,
       ...this.translation_);
