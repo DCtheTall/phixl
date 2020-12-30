@@ -19,8 +19,9 @@ and use environment mapping to map the cube camera to a teapot model.
 - Rendering a 3D object
 - Applying 3D transformations to objects
 - Using 2D textures
-- Lighting models
+- Diffuse and specular lighting
 - Animating your scene
+- Loading data into a shader from an OBJ file
 
 ### Code
 

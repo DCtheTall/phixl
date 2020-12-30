@@ -14,7 +14,7 @@ You can see the source code at `src/main.js`.
 - Rendering a 3D object
 - Applying 3D transformations to objects
 - Using 2D textures
-- Lighting models
+- Diffuse and specular lighting
 - Animating your scene
 
 ### Code
