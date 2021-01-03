@@ -87,13 +87,13 @@ const main = async () => {
   canvas.height = CANVAS_SIZE;
 
   // Load shaders for the background and cube.
-  const cubeVertSrc = require('./cube.vertex.glsl').default;
-  const cubeFragSrc = require('./cube.fragment.glsl').default;
   const skyboxVertSrc = require('./skybox.vertex.glsl').default;
   const skyboxFragSrc = require('./skybox.fragment.glsl').default;
+  const modelVertSrc = require('./model.vertex.glsl').default;
+  const modelFragSrc = require('./model.fragment.glsl').default;
 
   // Both shaders render a cube.
-  const cubeVertices = Vec3Attribute('a_CubeVertex', CUBE_VERTICES)
+  const cubeVertices = Vec3Attribute('a_Vertex', CUBE_VERTICES)
 
   // View and perspective matrix uniforms.
   const eyeVec = [0, 0, 30];
@@ -127,13 +127,13 @@ const main = async () => {
     });
 
   const cubeShader = (modelMatUniform) =>
-    Shader(cubeVertSrc, cubeFragSrc, {
+    Shader(modelVertSrc, modelFragSrc, {
       clear: false,
       mode: WebGLRenderingContext.TRIANGLES,
       indices: CUBE_INDICES,
       attributes: [
         cubeVertices,
-        Vec3Attribute('a_CubeNormal', CUBE_NORMALS),
+        Vec3Attribute('a_Normal', CUBE_NORMALS),
       ],
       uniforms: [
         modelMatUniform,
@@ -172,13 +172,13 @@ const main = async () => {
 
   const {indices, vertices, normals} = await loadTeapot();
 
-  const teapot = Shader(cubeVertSrc, cubeFragSrc, {
+  const teapot = Shader(modelVertSrc, modelFragSrc, {
     clear: false,
     mode: WebGLRenderingContext.TRIANGLES,
     indices,
     attributes: [
-      Vec3Attribute('a_CubeVertex', vertices),
-      Vec3Attribute('a_CubeNormal', normals),
+      Vec3Attribute('a_Vertex', vertices),
+      Vec3Attribute('a_Normal', normals),
     ],
     uniforms: [
       reflectiveModelMat,
