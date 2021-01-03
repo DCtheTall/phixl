@@ -465,4 +465,5 @@ For an example of how to use the `CubeCameraUniform` for dynamic reflections, se
 
 ## License
 
-TODO
+This code is publicly available under an Apache-2.0 license. See LICENSE for more
+information.
