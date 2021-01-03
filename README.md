@@ -328,7 +328,7 @@ const viewMat =
 ```
 
 The object returned by `ViewMatUniform` has accessor methods which let you get the eye, at, or up
-vectors for the view matrix:
+vectors that is used to compute the view matrix:
 
 ```javascript
 viewMat.eye();
@@ -345,9 +345,123 @@ viewMat.setUp(1, 10, 0);
 ```
 
 As you may notice, the up vector does not need to be normalized, the object will do that for you when
-it computes the view matrix.
+it computes the view matrix. The `up()` method will return the value passed to `setUp` before
+normalization.
 
-TODO rest of uniforms
+#### `PerspectiveMatUniform`
+
+The `PerspectiveMatUniform` sends a 4D matrix to a shader which transforms vertices from the view
+coordinates of the scene's camera to a coordinate system with linear perspective. It takes multiple
+arguments to compute the perspective matrix and is based on `g-matrix`'s `perspective` function.
+Below is an example:
+
+```javascript
+const perspectiveMat =
+  PerspectiveMatUniform(
+    'u_PerspectiveMat', /* fovy */ Math.PI / 3, /* aspect */ 1, /* near */ 1,
+    /* far */ 1e6);
+```
+
+The object returned by `PerspectiveMatUniform` has accessor methods which let you get the
+field of view (in radians), the width-to-height aspect ratio, the near plane, and the far
+plane that is used to compute the perspective matrix:
+
+```javascript
+perspectiveMat.fovy();
+perspectiveMat.aspect();
+perspectiveMat.near();
+perspectiveMat.far();
+```
+
+The object also has setter methods for each parameter for the perspective matrix:
+
+```javascript
+perspectiveMat.setFovy(Math.PI / 4);
+perspectiveMat.setAspect(canvas.width / canvas.height);
+perspectiveMat.setNear(0.1);
+perspectiveMat.setFar(1e4);
+```
+
+#### `Texture2DUniform`
+
+The `Texture2DUniform` sends a 2D texture to a shader in a `sampler2D`
+uniform. The second argument is any object which can be used as the data
+source for `gl.texImage2D(...)`. Below are some examples of how you can
+initialize a `Texture2DUniform`:
+
+```javascript
+const image = document.querySelector('img');
+const imageTexture = Texture2DUniform('u_Foo', image);
+
+const video = document.querySelector('video');
+const videoTexture = Texture2DUniform('u_Bar', video);
+
+const canvas = document.querySelector('canvas');
+const canvasTexture = Texture2DUniform('u_Baz', canvas);
+
+// Also could use ImageBitmap, ImageData, or OffscreenCanvas...
+```
+
+The objects returned by uniforms like `Texture2DUniform` can be the argument
+of functions returned by `Shader`. This allows you to apply shaders to textures
+which can be then used in other shaders. Below is an example:
+
+```javascript
+const textureShader = Shader(...);
+const texture = Texture2DUniform('u_Texture');
+
+// We render the first shader to the texture.
+textureShader(texture);
+
+const shader = Shader(vertexSrc, fragmentSrc, {
+  // attributes, other options...
+  uniforms: [
+    texture,
+    // Other uniforms...
+  ],
+});
+
+// The second shader renders to the canvas and can sample from the result
+// of the first shader, textureShader.
+shader(canvas);
+```
+
+#### `CubeTextureUniform`
+
+The `CubeTextureUniform` sends a cube texture to a shader in a `samplerCube`
+uniform. The second argument to `CubeTextureUniform` should be an object with
+a key for each face of a cube: `posx`, `negx`, `posy`, `negy`, `posz`, and `negz`.
+Each value of the object should be a data source for a 2D texture that you would
+for `gl.texImage2D`:
+
+```javascript
+const cubeTexture = CubeTextureUniform('u_Texture', {
+  posx: rightImage,
+  negx: leftImage,
+  posy: topImage,
+  negy: bottomImage,
+  posz: frontImage,
+  negz: backImage,
+});
+```
+
+Unlike `Texture2DUniform`, the object returned by `CubeTextureUniform` cannot be
+used as the argument for a function returned by `Shader`, though it may be nice
+at some point to support this!
+
+#### `CubeCameraUniform`
+
+`CubeCameraUniform` allows you to render a shader to a cube texture for things
+like environment mapping and dynamic reflections. It should only be used for shaders
+which have a view and perspective matrix, which is almost always present in 3D
+scenes.
+
+The arguments after the name of the uniform should be the position of the cube camera
+in the scene as an array of numbers, the scene's `ViewMatUniform`, and the scene's
+`PerspectiveMatUniform`.
+
+For an example of how to use the `CubeCameraUniform` for dynamic reflections, see
+`examples/cube_camera/src/main.js`.
 
 ## License
 
