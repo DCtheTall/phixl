@@ -3,3 +3,4 @@ lib/
 tsconfig.json
 webpack.config.js
 .gitignore
+publish.sh

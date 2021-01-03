@@ -1,6 +1,6 @@
 {
   "name": "phixl",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A functional WebGL library for rendering WebGL shaders",
   "main": "dist/index.js",
   "scripts": {
