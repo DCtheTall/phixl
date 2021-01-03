@@ -246,6 +246,9 @@ const glTexCubeMapFaces: Cube<GLenum> = {
   negz: WebGLRenderingContext.TEXTURE_CUBE_MAP_NEGATIVE_Z,
 };
 
+/**
+ * Checks if the size of each face of a cube texture is a power of two.
+ */
 const cubeFacesArePowersOfTwo = (data: Cube<TexImageSource>): boolean => {
   for (const cf of cubeFaces()) {
     if (!isPowerOfTwo(data[cf].width) || !isPowerOfTwo(data[cf].height)) {
@@ -276,6 +279,9 @@ export const cubeTexure = (gl: WebGLRenderingContext,
   return texture;
 };
 
+/**
+ * Send a texture to a shader as a uniform.
+ */
 const sendTexture = (target: GLenum) =>
   (gl: WebGLRenderingContext,
    program: WebGLProgram,

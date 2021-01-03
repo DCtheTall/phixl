@@ -40,6 +40,9 @@ import {
   translate,
 } from './math';
 
+/**
+ * Either is type T or a nullary function that returns T.
+ */
 type IsOrReturns<T> = T | (() => T);
 
 /**
@@ -58,6 +61,9 @@ export abstract class Uniform<Data extends UniformData> {
     protected dataOrCb_?: IsOrReturns<Data>,
   ) {}
 
+  /**
+   * Check that the type of a uniform matches the expected type.
+   */
   static checkType(u: Uniform<UniformData>, wantType: UniformType) {
     if (u.type_ !== wantType) {
       throw new TypeError(
@@ -65,16 +71,26 @@ export abstract class Uniform<Data extends UniformData> {
     }
   }
 
-  static dataOrCallback<Data extends UniformData>(u: Uniform<Data>):
-    IsOrReturns<Data> {
+  /**
+   * Get the data or callback to compute the data for the uniform.
+   * Static because this method should only be used in phixl's internals.
+   */
+  static dataOrCallback<Data extends UniformData>(u: Uniform<Data>) {
     return u.dataOrCb_;
   }
 
+  /**
+   * Set the data the uniform object will send to the shader.
+   * @param dataOrCb new data or a callback to compute the new data.
+   */
   set(dataOrCb: IsOrReturns<Data>) {
     this.dataOrCb_ = dataOrCb;
     return this;
   }
 
+  /**
+   * Get the data the uniform will send to the shader.
+   */
   data() {
     if (typeof this.dataOrCb_ === 'function') {
       return (this.dataOrCb_ as () => Data)();
@@ -82,15 +98,28 @@ export abstract class Uniform<Data extends UniformData> {
     return this.dataOrCb_;
   }
 
+  /**
+   * Send the uniform data to the shader.
+   */
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     throw new Error('Virtual method should not be invoked');
   }
 }
 
+/**
+ * Types of uniform data for uniforms that just send a single set
+ * of bytes to the shader (e.g. float).
+ */
 type BytesUniformType =
   UniformType.BOOLEAN | UniformType.FLOAT | UniformType.INTEGER;
 
+/**
+ * 
+ */
 class BytesUniform extends Uniform<number> {
+  /**
+   * Send the uniform data to the shader.
+   */
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.data())) {
       throw TypeError(`Data for ${this.type_} uniform should be a number`);
@@ -108,21 +137,34 @@ const bytesUniform = (type: BytesUniformType) =>
 
 /**
  * Send a boolean uniform to a shader.
+ * @param name of the uniform in the shader
+ * @param data the uniform will send to the shader
  */
 export const BooleanUniform = bytesUniform(UniformType.BOOLEAN);
 
 /**
  * Send a float uniform to a shader.
+ * @param name of the uniform in the shader
+ * @param data the uniform will send to the shader
  */
 export const FloatUniform = bytesUniform(UniformType.FLOAT);
 
 /**
  * Send a integer uniform to a shader.
+ * @param name of the uniform in the shader
+ * @param data the uniform will send to the shader
  */
 export const IntegerUniform = bytesUniform(UniformType.INTEGER);
 
+/**
+ * Type of uniform data for sequence uniforms, i.e. uniforms
+ * which send a sequence of float values to a shader.
+ */
 type SequenceUniformType = UniformType.VECTOR | UniformType.MATRIX;
 
+/**
+ * Abstraction for sending sequence uniforms to a shader.
+ */
 class SequenceUniform extends Uniform<Float32List> {
   constructor(
     type: SequenceUniformType,
@@ -133,6 +175,9 @@ class SequenceUniform extends Uniform<Float32List> {
     super(type, name, dataOrCb);
   }
 
+  /**
+   * Validate the sequence uniform's data.
+   */
   private validateData_() {
     if (this.type_ == UniformType.VECTOR) {
       if (this.data().length != this.dimension) {
@@ -147,6 +192,9 @@ class SequenceUniform extends Uniform<Float32List> {
     }
   }
 
+  /**
+   * Send the data to a shader.
+   */
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     this.validateData_();
     if (this.type_ === UniformType.VECTOR) {
@@ -156,12 +204,19 @@ class SequenceUniform extends Uniform<Float32List> {
     }
   }
 
+  /**
+   * Set the uniform's data.
+   * @param dataOrCb new data or a callback which computes the data.
+   */
   set(dataOrCb: IsOrReturns<Float32List>) {
     this.dataOrCb_ = dataOrCb;
     this.validateData_();
     return this;
   }
 
+  /**
+   * Check the dimension of a uniform.
+   */
   static checkDimension(u: SequenceUniform, wantDimension: number) {
     if (u.dimension != wantDimension) {
       throw new TypeError();
@@ -169,6 +224,9 @@ class SequenceUniform extends Uniform<Float32List> {
   }
 }
 
+/**
+ * Type of function used to create sequence uniforms.
+ */
 type SequenceUniformBuilder =
   (name: string, data?: IsOrReturns<Float32List>) => SequenceUniform;
 
@@ -182,40 +240,59 @@ const sequenceUniform =
 
 /**
  * Sends a 2-dimensional vector to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Vec2Uniform = sequenceUniform(UniformType.VECTOR, 2);
 
 /**
  * Sends a 3-dimensional vector to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Vec3Uniform = sequenceUniform(UniformType.VECTOR, 3);
 
 /**
  * Sends a 4-dimensional vector to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Vec4Uniform = sequenceUniform(UniformType.VECTOR, 4);
 
 /**
  * Sends a 2-dimensional matrix to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Mat2Uniform = sequenceUniform(UniformType.MATRIX, 2);
 
 /**
  * Sends a 3-dimensional matrix to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Mat3Uniform = sequenceUniform(UniformType.MATRIX, 3);
 
 /**
  * Sends a 4-dimensional matrix to a shader.
+ * @param name of the uniform
+ * @param data for the uniform
  */
 export const Mat4Uniform = sequenceUniform(UniformType.MATRIX, 4);
 
+/**
+ * Type definition of the 2nd argument for ModelMatUniform.
+ */
 interface ModelMatOptions {
   scale?: number | Vector3;
   rotate?: Vector4,
   translate?: Vector3,
 }
 
+/**
+ * Abstraction for sending a model matrix to a shader
+ * as a uniform.
+ */
 class ModelMatUniformImpl extends SequenceUniform {
   private scaleMatrix_: Matrix4;
   private rotationMatrix_: Matrix3;
@@ -239,14 +316,23 @@ class ModelMatUniformImpl extends SequenceUniform {
     if (opts.translate) this.translation_ = opts.translate;
   }
 
+  /**
+   * Get the scale component for the model matrix as a 4D matrix.
+   */
   scaleMatrix(): Matrix4 {
     return [...this.scaleMatrix_];
   }
 
+  /**
+   * Get the rotation component of the model matrix as a 3D matrix.
+   */
   rotationMatrix(): Matrix3 {
     return [...this.rotationMatrix_];
   }
 
+  /**
+   * Gets the rotation matrix as a 4D matrix.
+   */
   private rotationMatrix4_(): Matrix4 {
     const R = this.rotationMatrix_;
     return [
@@ -257,32 +343,57 @@ class ModelMatUniformImpl extends SequenceUniform {
     ];
   }
 
+  /**
+   * Gets the translation component of the model matrix as a 3D vector.
+   */
   translation(): Vector3 {
     return [...this.translation_];
   }
 
+  /**
+   * Get the model matrix this uniform will send as a 4D matrix.
+   */
   private matrix_(): Matrix4 {
     return translate(
       multiply(this.rotationMatrix4_(), this.scaleMatrix()) as Matrix4,
       ...this.translation_);
   }
   
+  /**
+   * Apply a new scale to the model matrix.
+   */
   scale(...args: number[]) {
     this.scaleMatrix_ = scale(this.scaleMatrix_, ...args);
   }
 
+  /**
+   * Set the scale of the model matrix.
+   */
   setScale(...args: number[]) {
     this.scaleMatrix_ = scale(identity(4) as Matrix4, ...args);
   }
 
+  /**
+   * Apply a rotation to the model matrix.
+   * @param theta angle of rotation in radians
+   * @param axis of rotation
+   */
   rotate(theta: number, ...axis: Vector3) {
     this.rotationMatrix_ = rotate(this.rotationMatrix_, theta, ...axis);
   }
 
+  /**
+   * Set the rotation component of the model matrix.
+   * @param theta angle of rotation in radians
+   * @param axis of rotation
+   */
   setRotate(theta: number, ...axis: Vector3) {
     this.rotationMatrix_ = rotate(identity(3) as Matrix3, theta, ...axis);
   }
 
+  /**
+   * Apply a translation to the model matrix.
+   */
   translate(...args: Vector3) {
     args = args.slice(0, 3) as Vector3;
     if (!isVector3(args)) {
@@ -291,6 +402,9 @@ class ModelMatUniformImpl extends SequenceUniform {
     this.translation_ = add(this.translation_, args);
   }
 
+  /**
+   * Set the translation component of the model matrix.
+   */
   setTranslation(...args: Vector3) {
     args = args.slice(0, 3) as Vector3;
     if (!isVector3(args)) {
@@ -341,34 +455,56 @@ export class ViewMatUniformImpl extends SequenceUniform {
       () => lookAt(this.eye_, this.at_, this.up_));
   }
 
+  /**
+   * Checks if the provided data is a 3D vector.
+   * @param data to validate
+   */
   private static validateVector3 = (data: unknown) => {
     if (!isVector3(data)) {
       throw new Error('Expected 3 numbers as arguments');
     }
   }
 
+  /**
+   * Get the eye vector for the view matrix.
+   */
   eye(): Vector3 {
     return [...this.eye_];
   }
 
+  /**
+   * Get the look at vector for the view matrix.
+   */
   at(): Vector3 {
     return [...this.at_];
   }
 
+  /**
+   * Get the up vector for the view matrix.
+   */
   up(): Vector3 {
     return [...this.up_];
   }
 
+  /**
+   * Set the eye vector.
+   */
   setEye(...eye: Vector3) {
     ViewMatUniformImpl.validateVector3(eye);
     this.eye_ = eye;
   }
 
+  /**
+   * Set the look at vector.
+   */
   setAt(...at: Vector3) {
     ViewMatUniformImpl.validateVector3(at);
     this.at_ = at.slice(0, 3) as Vector3;
   }
 
+  /**
+   * Set the up vector.
+   */
   setUp(...up: Vector3) {
     ViewMatUniformImpl.validateVector3(up);
     this.up_ = [...up];
@@ -383,6 +519,9 @@ export const ViewMatUniform =
   (name: string, eye: Vector3, at: Vector3, up: Vector3) =>
     new ViewMatUniformImpl(name, eye, at, up);
 
+/**
+ * Abstraction for a perspective matrix uniform.
+ */
 class PerspectiveMatUniformImpl extends SequenceUniform {
   constructor(
     name: string,
@@ -396,34 +535,58 @@ class PerspectiveMatUniformImpl extends SequenceUniform {
       () => perspective(this.fovy_, this.aspect_, this.near_, this.far_));
   }
 
+  /**
+   * Get the field of view in radians.
+   */
   fovy() {
     return this.fovy_;
   }
 
+  /**
+   * Get the aspect ratio (width / height).
+   */
   aspect() {
     return this.aspect_;
   }
 
+  /**
+   * Get the near plane.
+   */
   near() {
     return this.near_;
   }
 
+  /**
+   * Get the far plane.
+   */
   far() {
     return this.far_;
   }
 
+  /**
+   * Set the field of view in radians.
+   */
   setFovy(fovy: number) {
     this.fovy_ = fovy;
   }
 
+  /**
+   * Set the aspect ratio (width / height).
+   */
   setAspect(aspect: number) {
     this.aspect_ = aspect;
   }
 
+  /**
+   * Set the near plane.
+   */
   setNear(near: number) {
     this.near_ = near;
   }
 
+  /**
+   * Set the far plane.
+   */
   setFar(far: number) {
     this.far_ = far;
   }
@@ -444,35 +607,62 @@ export const PerspectiveMatUniform = (name: string,
  */
 export type TextureData = CubeOr<TexImageSource>;
 
+/**
+ * This type contains the WebGLFramebuffer and WebGLRenderbuffer used
+ * to render a shader to a texture.
+ */
 interface Texture2DBuffers {
   frameBuffer: WebGLFramebuffer;
   renderBuffer: WebGLRenderbuffer;
 }
 
+/**
+ * A cube of texture buffers for rendering a shader to a cube texture.
+ */
 type CubeTextureBuffers =
   {[k in keyof Texture2DBuffers]: Cube<Texture2DBuffers[k]>};
 
+/**
+ * Union type for buffers for 2D and cube textures.
+ */
 type TextureBuffers = Texture2DBuffers | CubeTextureBuffers;
 
+/**
+ * Abstraction for a texture uniform.
+ */
 export class TextureUniform<Data extends TextureData> extends Uniform<Data> {
   protected offset_: number;
   protected texture_: WebGLTexture;
   protected textureBuffers_: TextureBuffers;
 
+  /**
+   * Check if the uniform needs to build the texture.
+   */
   protected shouldBuildTextureFromData_() {
     return (!this.textureBuffers_) // If this object exists then 
       && (!!this.dataOrCb_)
       && (!this.texture_ || isVideo(this.data()));
   }
 
+  /**
+   * Prepare the texture before using it in a shader.
+   */
   prepare(gl: WebGLRenderingContext, p: WebGLProgram) {
     throw new Error('Virtual method should not be invoked');
   }
 
+  /**
+   * Get the WebGLFramebuffer and WebGLRenderbuffer to render a shader
+   * to this texture.
+   */
   buffers(gl: WebGLRenderingContext, v: Viewport): TextureBuffers {
     throw new Error('Virtual method should not be invoked');
   }
 
+  /**
+   * Set new data for the uniform.
+   * @param dataOrCb the new data or a callback computing the data.
+   */
   set(dataOrCb: IsOrReturns<Data>): this {
     this.dataOrCb_ = dataOrCb;
     this.texture_ = undefined;
@@ -497,6 +687,9 @@ export class Texture2DUniformImpl extends TextureUniform<TexImageSource> {
     super(UniformType.TEXTURE, name, dataOrCb);
   }
 
+  /**
+   * Prepare the 2D texture before using it in a shader.
+   */
   prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.offset_)) {
       this.offset_ = newTextureOffset(program, this.name);
@@ -506,10 +699,16 @@ export class Texture2DUniformImpl extends TextureUniform<TexImageSource> {
     }
   }
 
+  /**
+   * Send the 2D texture to a shader.
+   */
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     send2DTexture(gl, program, this.name, this.offset_, this.texture_);
   }
 
+  /**
+   * Get the buffers needed to render a shader to this texture.
+   */
   buffers(gl: WebGLRenderingContext, viewport: Viewport): Texture2DBuffers {
     if (this.textureBuffers_) return this.textureBuffers_;
     const frameBuffer = gl.createFramebuffer();
@@ -530,9 +729,15 @@ export const Texture2DUniform =
   (name: string, data?: IsOrReturns<TexImageSource>) =>
     new Texture2DUniformImpl(name, data);
 
+/**
+ * Implementation of a cube texture.
+ */
 export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
   protected textureBuffers_: CubeTextureBuffers;
 
+  /**
+   * Validate that the data is a cube.
+   */
   private validateData() {
     if (!isCube(this.data())) {
       throw new Error(
@@ -541,6 +746,10 @@ export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     }
   }
 
+  /**
+   * Set the data of the cube texture.
+   * @param dataOrCb new data or callback that computes the data.
+   */
   set(dataOrCb: IsOrReturns<Cube<TexImageSource>>): this {
     this.dataOrCb_ = dataOrCb;
     this.validateData();
@@ -548,6 +757,9 @@ export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     return this;
   }
 
+  /**
+   * Prepare the cube texture to be used in a shader.
+   */
   prepare(gl: WebGLRenderingContext, program: WebGLProgram) {
     if (isNaN(this.offset_)) {
       this.offset_ = newTextureOffset(program, this.name);
@@ -557,10 +769,16 @@ export class CubeTextureImpl extends TextureUniform<Cube<TexImageSource>> {
     }
   }
 
+  /**
+   * Send the cube texture to a shader.
+   */
   send(gl: WebGLRenderingContext, program: WebGLProgram) {
     sendCubeTexture(gl, program, this.name, this.offset_, this.texture_);
   }
   
+  /**
+   * Get a Cube of buffers needed to render a shader to the cube texture.
+   */
   buffers(gl: WebGLRenderingContext, viewport: Viewport): CubeTextureBuffers {
     if (this.textureBuffers_) return this.textureBuffers_;
     const [,, width, height] = viewport;
@@ -626,11 +844,18 @@ export class CubeCameraUniformImpl extends CubeTextureImpl {
     SequenceUniform.checkDimension(viewMat_, 4);
   }
 
+  /**
+   * You should not use this method with a cube camera uniform.
+   */
   set(dataOrCb: IsOrReturns<Cube<TexImageSource>>): never {
     throw new Error(
       'Cube camera uniforms should get their data from a shader');
   }
 
+  /**
+   * Render a scene to a cube camera texture. Should only be used by
+   * phixl internals.
+   */
   render(renderShader: (cf: CubeFace) => void) {
     const fovy = this.perspectiveMat_.fovy();
     this.perspectiveMat_.setFovy(Math.PI / 2);

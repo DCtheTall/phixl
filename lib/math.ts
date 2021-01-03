@@ -323,6 +323,9 @@ export const cubeFaces = (): CubeFace[] =>
  */
 export type Cube<T> = Record<CubeFace, T>;
 
+/**
+ * Can either be the type, T, or a Cube of T.
+ */
 export type CubeOr<T> = T | Cube<T>;
 
 /**

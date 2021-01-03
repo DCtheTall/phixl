@@ -38,17 +38,33 @@ const defaultOpts: Required<Omit<ShaderOptions, 'viewport' | 'indices'>> = {
   clear: true,
 };
 
+/**
+ * Get the "clear" option value.
+ */
 const clearOption = (opts: ShaderOptions) =>
   (opts.clear === undefined) || opts.clear;
 
+/**
+ * The default viewport is the size of the canvas we render to.
+ */
 const defaultViewport = (canvas: HTMLCanvasElement): Viewport =>
   [0, 0, canvas.width, canvas.height];
 
+/**
+ * Get the number of vertices a shader will render.
+ */
 const nVertices = (opts: ShaderOptions): number =>
   opts.indices ? opts.indices.length : opts.attributes[0].length();
 
+/**
+ * Key for the cache which of rendering contexts and WebGLProgram that
+ * we initialize with Shader.
+ */
 type CacheKey = {};
 
+/**
+ * The interface stored in the cache for each shader.
+ */
 interface CacheItem {
   gl: WebGLRenderingContext;
   program: WebGLProgram;
@@ -56,24 +72,38 @@ interface CacheItem {
 
 const cache = new WeakMap<CacheKey, CacheItem>();
 
+/**
+ * Look up a rendering context and WebGLProgram for a shader.
+ * If they don't exist already, create one.
+ */
 const lookup = (key: CacheKey,
                 canvas: HTMLCanvasElement,
                 vertexSrc: string,
                 fragmentSrc: string): CacheItem => {
-  let state = cache.get(key);
-  if (!state) {
+  let item = cache.get(key);
+  if (!item) {
     const gl = glContext(canvas);
-    state = {gl, program: glProgram(gl, vertexSrc, fragmentSrc)};
-    cache.set(key, state);
+    item = {gl, program: glProgram(gl, vertexSrc, fragmentSrc)};
+    cache.set(key, item);
   }
-  return state;
+  return item;
 };
 
+/**
+ * We render shaders to textures by storing each time a shader function
+ * is called with a texture to a map. When we render to an actual canvas
+ * the functions get executed with the canvas's rendering context.
+ */
 type TextureRenderFunc = (canvas: HTMLCanvasElement) => void;
 
 const pendingTextureRenders =
   new WeakMap<TextureUniform<TextureData>, TextureRenderFunc[]>();
 
+/**
+ * Prepare a texture uniform for rendering.
+ * If the texture's content is the output of a shader, we actually
+ * render the shader to the texture here.
+ */
 const prepareTextureUniforms = (gl: WebGLRenderingContext,
                                 prog: WebGLProgram,
                                 canvas: HTMLCanvasElement,
@@ -90,6 +120,10 @@ const prepareTextureUniforms = (gl: WebGLRenderingContext,
   }
 };
 
+/**
+ * Send the attributes and uniforms to a shader. If the shader
+ * is using gl.drawElements(...) then also send the indices.
+ */
 const sendDataToShader = (gl: WebGLRenderingContext,
                           prog: WebGLProgram,
                           opts: ShaderOptions) => {
@@ -108,6 +142,9 @@ const sendDataToShader = (gl: WebGLRenderingContext,
   if (opts.indices) sendIndices(gl, opts.indices);
 };
 
+/**
+ * Render a shader to either a canvas for a WebGLFramebuffer.
+ */
 const renderShader = (key: CacheKey,
                       canvas: HTMLCanvasElement,
                       vertexSrc: string,
@@ -130,6 +167,9 @@ const renderShader = (key: CacheKey,
     /* drawElements= */ !!opts.indices);
 };
 
+/**
+ * Render a shader to a cube texture. So far only cube cameras are supported.
+ */
 const renderCubeTexture = (key: CacheKey,
                            canvas: HTMLCanvasElement,
                            opts: ShaderOptions,
@@ -151,6 +191,9 @@ const renderCubeTexture = (key: CacheKey,
   throw new Error('Not implemented');
 };
 
+/**
+ * Render a shader to a 2D texture.
+ */
 const render2DTexture = (key: CacheKey,
                          canvas: HTMLCanvasElement,
                          opts: ShaderOptions,
@@ -165,6 +208,10 @@ const render2DTexture = (key: CacheKey,
     renderBuffer, opts);
 };
 
+/**
+ * Create a function that delays rendering a shader to a texture
+ * until a shader that uses the texture is rendered to a camera.
+ */
 const createTextureRenderFunc = (key: CacheKey,
                                  target: TextureUniform<TextureData>,
                                  vertexSrc: string,
@@ -179,6 +226,9 @@ const createTextureRenderFunc = (key: CacheKey,
       key, canvas, opts, target as Texture2DUniformImpl, vertexSrc, fragmentSrc);
   };
 
+/**
+ * Add a texture render function to the map.
+ */
 const addTextureRenderFunc = (target: TextureUniform<TextureData>,
                               func: TextureRenderFunc) => {
   let funcs = pendingTextureRenders.get(target);
@@ -189,31 +239,44 @@ const addTextureRenderFunc = (target: TextureUniform<TextureData>,
   funcs.push(func);
 };
 
+/**
+ * The type of objects the function returned by Shader can be called with.
+ */
 type RenderTarget = HTMLCanvasElement | TextureUniform<TextureData>;
 
+/**
+ * The type of function returned by Shader.
+ */
 type ShaderFunc = (target: RenderTarget) => RenderTarget;
 
 /**
  * Create a shader function to render to a target.
- *
- * TODO validation for arguments
+ * @param vertexSrc the vertex shader source
+ * @param fragmentSrc the fragment shader source
+ * @param options for the shader
  */
 export const Shader = (vertexSrc: string,
                        fragmentSrc: string,
-                       opts: ShaderOptions): ShaderFunc => {
-  if (!(opts && opts.attributes?.length)) {
-    throw new Error('Shaders require at least one attribute');
+                       options: ShaderOptions): ShaderFunc => {
+  if (typeof vertexSrc !== 'string') {
+    throw new Error('The first argument of Shader must be a string');
+  }
+  if (typeof fragmentSrc !== 'string') {
+    throw new Error('The second argument of Shader must be a string');
+  }
+  if (!(options && options.attributes?.length)) {
+    throw new Error('Shader requires at least one attribute');
   }
   const key: CacheKey = {};
   return (target: RenderTarget) => {
     if (target instanceof HTMLCanvasElement) {
       renderShader(
-        key, target, vertexSrc, fragmentSrc, null, null, opts);
+        key, target, vertexSrc, fragmentSrc, null, null, options);
       return target;
     } else if (isTextureUniform(target)) {
       addTextureRenderFunc(
         target,
-        createTextureRenderFunc(key, target, vertexSrc, fragmentSrc, opts));
+        createTextureRenderFunc(key, target, vertexSrc, fragmentSrc, options));
       return target;
     }
     throw new Error(
