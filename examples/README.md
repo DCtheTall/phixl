@@ -4,6 +4,8 @@ This directory contains a collection of Node.js apps which serve examples of wha
 do with phixl and WebGL. You can run `webpack` and `npm start` in these directories to start
 the server, and navigate your browser to `http://localhost:4000` to see the examples in action.
 
+All of the JavaScript and GLSL code for each example is in the `src` directory.
+
 The recommended order to view the examples is below along with a brief explanation of each example.
 
 ## Cube
