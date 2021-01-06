@@ -172,7 +172,7 @@ All attributes take 2 arguments:
 
 The value for the second argument depends on the type of the attribute.
 For all attributes except for matrix attributes, the argument should be
-a `Float32Array`. These uniforms are:
+a `Float32List`. These uniforms are:
 
 - `FloatAttribute`
 - `Vec2Attribute`
@@ -181,7 +181,7 @@ a `Float32Array`. These uniforms are:
 
 #### Matrix attributes
 
-Unlike all other attributes, matrix attributes take an array of `Float32Array`
+Unlike all other attributes, matrix attributes take an array of `Float32List`
 as the second argument. Each element of the array is a vector attribute for each
 column vector of the matrix. Matrix attributes are:
 
@@ -248,18 +248,16 @@ const vec4 = Vec4Uniform('u_Baz', [1, 2, 3, 4]);
 #### Matrix uniforms
 
 Matrix uniforms sends a matrix of float values to a shader uniform. The second
-argument should be an array of `Float32List`. The size of the array depends on the
-dimension of the matrix, each `Float32List` should be attribute data for a vector
-with the same dimension as the matrix. If the current `Float32List` is at the index
-`i` of the array and a float is at index `j` of a vector in the `Float32List`, the
-float would be for element `M[i][j]` in column-major order.
+argument should be an array of numbers. The size of the array depends on the
+dimension of the matrix. Example usage with
+[`gl-matrix`](https://www.npmjs.com/package/gl-matrix):
 
 ```javascript
 const {mat2, mat3, mat4} = require('gl-matrix');
 
-const mat2 = Mat2Uniform('u_Foo', [ /* array of Float32List... */ ]);
-const mat3 = Mat3Uniform('u_Bar', [ /* array of Float32List... */ ]);
-const mat4 = Mat4Uniform('u_Baz', [ /* array of Float32List... */ ]);
+const mat2 = Mat2Uniform('u_Foo', mat2.create());
+const mat3 = Mat3Uniform('u_Bar', mat3.create());
+const mat4 = Mat4Uniform('u_Baz', mat4.create());
 ```
 
 #### `ModelMatUniform`
