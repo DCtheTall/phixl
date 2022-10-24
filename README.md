@@ -1,5 +1,7 @@
 # phixl
 
+**This is not an officially supported Google product**
+
 A library for WebGL which is for people who want to write their own shaders.
 
 [NPM](https://npmjs.org/package/phixl) | [GitHub](https://github.com/DCtheTall/phixl)
